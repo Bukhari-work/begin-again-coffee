@@ -85,8 +85,8 @@
 					</p>
 
 					<p>
-						Kami ingin <strong>Begin Again</strong> terasa seperti rumah kedua. Tempat di
-						mana rasa kopinya tidak hanya enak, tetapi jua disajikan dengan senyuman (DON).
+						Kami handak <strong>Begin Again</strong> terasa seperti rumah kedua. Tempat yang
+						rasa kopinya sudah nyaman, mana disajiakan dengan senyuman (DON) pulang.
 					</p>
 				</div>
 			</div>

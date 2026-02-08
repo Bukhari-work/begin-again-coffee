@@ -1,0 +1,186 @@
+@import "tailwindcss";
+
+/* --- 1. FONTS (Kept Lilex as requested) --- */
+@font-face {
+	font-family: "Lilex";
+	src: url("/fonts/Lilex[wght].woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Lilex";
+	src: url("/fonts/Lilex-Italic[wght].woff2") format("woff2");
+	font-weight: 100 900;
+	font-style: italic;
+	font-display: swap;
+}
+
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* --- 2. BRAND PALETTE MAPPING --- */
+:root {
+	/* DESIGN PHILOSOPHY: "Amuntai Warm Industrial"
+       Radius: 0px for sharp, structural edges (Concrete/Wood)
+    */
+	--radius: 0rem;
+
+	/* COLOR 1: #231a15 (Dark Coffee) -> Foreground / Text
+       COLOR 2: #f8a720 (Vibrant Orange) -> Primary / Buttons
+       COLOR 3: #d6b380 (Muted Gold) -> Borders / Inputs / Accents
+       COLOR 4: #f5e1c0 (Pale Cream) -> Secondary / Card Backgrounds
+    */
+
+	/* Background: A very light tint of your Cream (almost white, for readability) */
+	--background: oklch(0.98 0.01 83);
+
+	/* Foreground: Your #231a15 (Dark Coffee) */
+	--foreground: oklch(0.17 0.013 46);
+
+	/* Card: White or extremely light cream */
+	--card: oklch(0.99 0.005 83);
+	--card-foreground: oklch(0.17 0.013 46);
+
+	/* Popover */
+	--popover: oklch(0.99 0.005 83);
+	--popover-foreground: oklch(0.17 0.013 46);
+
+	/* Primary: Your #f8a720 (Orange) */
+	--primary: oklch(0.75 0.19 67);
+	--primary-foreground: oklch(0.17 0.013 46); /* Dark text on orange for contrast */
+
+	/* Secondary: Your #f5e1c0 (Pale Cream) */
+	--secondary: oklch(0.91 0.05 83);
+	--secondary-foreground: oklch(0.17 0.013 46);
+
+	/* Muted: Your #d6b380 (Muted Gold) at lower opacity */
+	--muted: oklch(0.91 0.05 83); /* Using Cream for muted backgrounds */
+	--muted-foreground: oklch(0.5 0.05 78); /* Darker gold for muted text */
+
+	/* Accent: Used for hovers */
+	--accent: oklch(0.91 0.05 83);
+	--accent-foreground: oklch(0.17 0.013 46);
+
+	--destructive: oklch(0.577 0.245 27.325);
+
+	/* Border: Your #d6b380 (Muted Gold) - Looks like cardboard/wood */
+	--border: oklch(0.78 0.08 78);
+	--input: oklch(0.78 0.08 78);
+	--ring: oklch(0.75 0.19 67); /* Orange ring */
+
+	/* Chart Colors (Standard) */
+	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: oklch(0.769 0.188 70.08);
+
+	/* Sidebar (Dashboard) specific - matching the brand */
+	--sidebar: oklch(0.98 0.01 83);
+	--sidebar-foreground: oklch(0.17 0.013 46);
+	--sidebar-primary: oklch(0.75 0.19 67);
+	--sidebar-primary-foreground: oklch(0.17 0.013 46);
+	--sidebar-accent: oklch(0.91 0.05 83);
+	--sidebar-accent-foreground: oklch(0.17 0.013 46);
+	--sidebar-border: oklch(0.78 0.08 78);
+	--sidebar-ring: oklch(0.75 0.19 67);
+}
+
+.dark {
+	/* Dark Mode: Inverted logic */
+	--background: oklch(0.15 0.013 46); /* Darker version of your brown */
+	--foreground: oklch(0.91 0.05 83); /* Your Cream color as text */
+
+	--card: oklch(0.17 0.013 46);
+	--card-foreground: oklch(0.91 0.05 83);
+
+	--popover: oklch(0.17 0.013 46);
+	--popover-foreground: oklch(0.91 0.05 83);
+
+	--primary: oklch(0.75 0.19 67); /* Keep Orange */
+	--primary-foreground: oklch(0.15 0.013 46);
+
+	--secondary: oklch(0.25 0.02 46);
+	--secondary-foreground: oklch(0.91 0.05 83);
+
+	--muted: oklch(0.25 0.02 46);
+	--muted-foreground: oklch(0.78 0.08 78);
+
+	--accent: oklch(0.25 0.02 46);
+	--accent-foreground: oklch(0.91 0.05 83);
+
+	--destructive: oklch(0.704 0.191 22.216);
+
+	--border: oklch(0.3 0.02 46);
+	--input: oklch(0.3 0.02 46);
+	--ring: oklch(0.75 0.19 67);
+}
+
+@theme inline {
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+
+	/* MAPPING LILEX TO UTILITIES */
+	--font-mono: "Lilex", ui-monospace, SFMono-Regular, monospace;
+	--font-sans: "Lilex", ui-sans-serif, system-ui, sans-serif;
+
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
+
+	/* Define the animation utility name (--animate-*) */
+	--animate-marquee: marquee 25s linear infinite;
+
+	/* Define the keyframes */
+	@keyframes marquee {
+		to {
+			transform: translateX(-100%);
+		}
+	}
+}
+
+@layer base {
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
+
+	.container {
+		@apply mx-auto max-w-7xl px-4 md:px-6;
+	}
+}

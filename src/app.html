@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en" class="h-full">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+		<meta name="theme-color" content="#09090b" />
+
+		<!-- Optional: better font rendering -->
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+		%sveltekit.head%
+	</head>
+
+	<body
+		class="bg-background text-foreground min-h-full font-sans antialiased"
+		data-sveltekit-preload-data="hover"
+	>
+		<!-- SvelteKit mount -->
+		<div id="app" class="contents">%sveltekit.body%</div>
+	</body>
+</html>

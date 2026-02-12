@@ -102,7 +102,7 @@
 			const time = formatTime(tomorrow[0].open);
 			return {
 				status: "closed",
-				label: `Buka besok pukul ${time}`,
+				label: `Buka lagi besok ${time} WITA`,
 			};
 		}
 

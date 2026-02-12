@@ -4,9 +4,9 @@
 </script>
 
 <div
-	class="bg-background text-foreground selection:bg-primary selection:text-primary-foreground min-h-screen pb-20 font-sans"
+	class="bg-background text-foreground selection:bg-primary selection:text-primary-foreground pb-20 font-sans"
 >
-	<header class="border-border bg-card mb-8 border-b">
+	<header class="border-border bg-card border-b">
 		<div class="container mx-auto grid gap-6 px-4 py-12 md:grid-cols-2 md:items-end md:px-6">
 			<div>
 				<div class="mb-4 flex flex-wrap items-center gap-3">
@@ -32,7 +32,7 @@
 		</div>
 	</header>
 
-	<section class="container mx-auto px-4 md:px-6">
+	<section class="container mx-auto px-4 py-8 md:px-6">
 		<div class="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
 			<!-- Rotating Ring -->
 			<div

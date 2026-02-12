@@ -11,19 +11,19 @@
 <section class="border-border bg-card relative flex min-h-[85vh] flex-col justify-center border-b">
 	<div
 		class="absolute inset-0"
-		style="background-image: radial-gradient(#e5e7eb 1px, transparent 1px); background-size: 24px 24px; opacity: 0.4;"
+		style="background-image: radial-gradient(#e5e7eb 2px, transparent 2px); background-size: 24px 24px; opacity: 0.4;"
 	></div>
 
 	<div class="relative z-10 container mx-auto max-w-4xl px-4 text-center">
 		<ShopStatus />
 
-		<h1 class="my-6 text-6xl leading-[0.95] font-black tracking-tighter uppercase md:text-8xl">
-			Kedai Halus.<br />
-			<span class="text-primary">Kopinya Nyaman.</span>
+		<h1 class="mt-3 mb-6 leading-[0.95] font-black tracking-tighter uppercase">
+			<span class="text-3xl md:text-8xl"> Kedainya Halus.</span><br />
+			<span class="text-primary text-4xl md:text-8xl">Kopinya Nyaman.</span>
 		</h1>
 
 		<div class="flex flex-row items-center gap-4">
-			<p class="text-muted-foreground mx-auto mb-10 max-w-xl font-mono text-lg md:text-xl">
+			<p class="text-muted-foreground text-md mx-auto mb-10 max-w-xl font-mono md:text-xl">
 				Kedai kopi kecil di Amuntai.<br />
 				Seduhan ada, espresso ada.<br />
 				Datang, duduk, ngopi.
@@ -37,27 +37,27 @@
 					href="/menu"
 					class="
 					bg-primary hover:bg-primary/90 active:bg-primary/90 text-background
-					h-14 w-full max-w-xs touch-manipulation
-					rounded-xl text-lg font-black tracking-wide uppercase
-					shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+					h-12 w-full max-w-xs touch-manipulation rounded-xl
+					text-lg font-black tracking-wide uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
 					transition-all
-					hover:translate-x-1 hover:translate-y-1 hover:shadow-none
-					active:translate-x-1 active:translate-y-1 active:shadow-none
+					hover:translate-x-1
+					hover:translate-y-1 hover:shadow-none active:translate-x-1
+					active:translate-y-1 active:shadow-none md:h-16
 				"
 				>
 					Lihat Menu
 				</Button>
 				<Button
 					size="lg"
-					href="/menu"
+					href="/visit"
 					class="
 					bg-primary hover:bg-primary/90 active:bg-primary/90 text-background
-					h-14 w-full max-w-xs touch-manipulation
-					rounded-xl text-lg font-black tracking-wide uppercase
-					shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
+					h-12 w-full max-w-xs touch-manipulation rounded-xl
+					text-lg font-black tracking-wide uppercase shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]
 					transition-all
-					hover:translate-x-1 hover:translate-y-1 hover:shadow-none
-					active:translate-x-1 active:translate-y-1 active:shadow-none
+					hover:translate-x-1
+					hover:translate-y-1 hover:shadow-none active:translate-x-1
+					active:translate-y-1 active:shadow-none md:h-16
 				"
 				>
 					Alamat
@@ -102,7 +102,7 @@
 	</div>
 </section>
 
-<section class="bg-secondary/20 py-24">
+<section class="bg-background py-24">
 	<div class="container px-4">
 		<div class="mb-12 flex flex-col items-center text-center">
 			<div

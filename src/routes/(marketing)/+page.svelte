@@ -1,14 +1,17 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button";
-	import { MapPin, Sun, Sparkles } from "@lucide/svelte";
+	import { MapPin, Hash, Heart, Sparkles } from "@lucide/svelte";
 	import type { PageData } from "./$types";
 	import ShopStatus from "$lib/components/ShopStatus.svelte";
 	import ItemCard from "$lib/components/ItemCard.svelte";
+	import ReviewCard from "$lib/components/ReviewCard.svelte";
 
 	let { data } = $props<{ data: PageData }>();
 </script>
 
-<section class="border-border bg-card relative flex min-h-[85vh] flex-col justify-center border-b">
+<section
+	class="border-border bg-background relative flex min-h-[85vh] flex-col justify-center border-b"
+>
 	<div
 		class="absolute inset-0"
 		style="background-image: radial-gradient(#e5e7eb 2px, transparent 2px); background-size: 24px 24px; opacity: 0.4;"
@@ -102,7 +105,7 @@
 	</div>
 </section>
 
-<section class="bg-background py-24">
+<section class="bg-secondary/20 py-24">
 	<div class="container px-4">
 		<div class="mb-12 flex flex-col items-center text-center">
 			<div
@@ -135,46 +138,76 @@
 	</div>
 </section>
 
-<section class="border-t border-black bg-stone-900 py-20 text-stone-50">
-	<div class="container grid items-center gap-12 px-4 md:grid-cols-2">
-		<div class="space-y-6">
-			<div
-				class="inline-flex items-center gap-2 border border-white/20 px-3 py-1 font-mono text-xs text-stone-400"
-			>
-				<Sun class="h-3 w-3" />
-				<span>TERAS DEPAN</span>
+<section class="relative overflow-hidden border-t border-black bg-stone-950 py-24 text-stone-50">
+	<div
+		class="absolute top-0 right-0 -mt-20 -mr-20 h-96 w-96 rounded-full bg-yellow-500/5 blur-3xl"
+	></div>
+	<div
+		class="absolute bottom-0 left-0 -mb-20 -ml-20 h-96 w-96 rounded-full bg-stone-800/20 blur-3xl"
+	></div>
+
+	<div class="relative z-10 container px-4">
+		<div
+			class="mb-16 flex flex-col gap-6 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between"
+		>
+			<div class="space-y-4">
+				<div
+					class="inline-flex items-center gap-2 rounded-full border border-yellow-500/30 bg-yellow-500/10 px-3 py-1 font-mono text-xs font-bold tracking-widest text-yellow-500 uppercase"
+				>
+					<Heart class="h-3 w-3 fill-current" />
+					<span>Dari Hati</span>
+				</div>
+				<h2
+					class="text-5xl leading-[0.9] font-black tracking-tighter uppercase md:text-7xl"
+				>
+					Apa Jar <br class="hidden md:block" />
+					<span class="text-stone-600">Buhannya?</span>
+				</h2>
 			</div>
 
-			<h2 class="text-5xl font-black tracking-tighter uppercase">Teras Depan</h2>
-
-			<p class="font-mono text-lg text-stone-400">
-				Outdoor, sederhana.<br />
-				Enak buat duduk pagi-pagi.<br />
-				Nongkrong setumat, tapi mun lawas dikit gin kada papa.
-			</p>
-
-			<ul class="space-y-4 font-mono text-sm text-stone-300">
-				<li class="flex items-center gap-3">
-					<span class="bg-primary h-1.5 w-1.5 rounded-full"></span>
-					Tempat duduk terbatas
-				</li>
-				<li class="flex items-center gap-3">
-					<span class="bg-primary h-1.5 w-1.5 rounded-full"></span>
-					Ramah hewan
-				</li>
-				<li class="flex items-center gap-3">
-					<span class="bg-primary h-1.5 w-1.5 rounded-full"></span>
-					Ada colokan
-				</li>
-			</ul>
-		</div>
-
-		<div class="relative aspect-4/5 border-2 border-white/20 p-2">
-			<div class="relative flex h-full w-full items-center justify-center bg-stone-800">
-				<p class="text-center font-mono text-xs tracking-widest text-stone-500 uppercase">
-					[Foto Teras & Bangku Beton]
+			<div class="max-w-xs md:text-right">
+				<p class="font-mono text-sm text-stone-400">
+					Bukan sekadar rating, ini kisah nyata dari mereka yang sudah duduk dan ngopi di
+					sini.
 				</p>
 			</div>
+		</div>
+
+		<div class="grid gap-6 md:grid-cols-3">
+			<ReviewCard
+				topic="Mabar"
+				quote="Mun handak santai sini pang sudah. Es kopsus-nya pas banar, kada talalu manis. Baristanya jago pulang main Mobile Legends"
+				name="Bukhari"
+				role="Penikmat Kopi"
+			/>
+
+			<ReviewCard
+				featured={true}
+				topic="Rasa"
+				quote="Jujur, ini hidden gem di Amuntai. Manual brew-nya mantap, baristanya kawa diajak bakisahan soal beans."
+				name="Amad (Igun)"
+				role="Owner"
+			/>
+
+			<ReviewCard
+				topic="Suasana"
+				quote="Tempatnya tenang. Siang-siang duduk di teras depan sambil liat urang lalu lalang tu rasanya nyaman banar."
+				name="Donn"
+				role="Donn"
+			/>
+		</div>
+
+		<div class="mt-20 flex flex-col items-center justify-center text-center">
+			<div class="mb-4 rounded-full bg-stone-900 px-4 py-2">
+				<Hash class="mx-auto mb-1 h-4 w-4 text-stone-500" />
+			</div>
+			<p class="max-w-md font-mono text-sm text-stone-400">
+				Pernah mampir? Tag kami di Instagram
+				<a href="https://instagram.com/begin.againcoffee" class="font-bold text-yellow-500">
+					@begin.againcoffee
+				</a>
+				biar kami repost fotomu!
+			</p>
 		</div>
 	</div>
 </section>

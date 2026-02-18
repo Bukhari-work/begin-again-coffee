@@ -14,7 +14,7 @@
 >
 	<div
 		class="absolute inset-0"
-		style="background-image: radial-gradient(#e5e7eb 2px, transparent 2px); background-size: 24px 24px; opacity: 0.4;"
+		style="background-image: radial-gradient(var(--primary) 1px, transparent 1px); background-size: 24px 24px; opacity: 0.4;"
 	></div>
 
 	<div class="relative z-10 container mx-auto max-w-4xl px-4 text-center">

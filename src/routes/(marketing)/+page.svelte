@@ -63,7 +63,7 @@
 					active:translate-y-1 active:shadow-none md:h-16
 				"
 				>
-					Alamat
+					Cek Lokasi
 				</Button>
 			</div>
 			<div class="text-muted-foreground flex items-center gap-2 font-mono text-sm">
@@ -80,11 +80,13 @@
 			>
 				<span>☕ Manual Brew</span>
 				<span>•</span>
-				<span>⚡ WiFi Gratis</span>
+				<span>🥤 Kopsus Botolan</span>
+				<span>•</span>
+				<span>🌴 Teras Depan</span>
 				<span>•</span>
 				<span>☕ Espresso Base</span>
 				<span>•</span>
-				<span>🌴 Teras Depan</span>
+				<span>☕ Kopian Malam</span>
 				<span>•</span>
 			</div>
 
@@ -94,11 +96,13 @@
 			>
 				<span>☕ Manual Brew</span>
 				<span>•</span>
-				<span>⚡ WiFi Gratis</span>
+				<span>🥤 Kopsus Botolan</span>
+				<span>•</span>
+				<span>🌴 Teras Depan</span>
 				<span>•</span>
 				<span>☕ Espresso Base</span>
 				<span>•</span>
-				<span>🌴 Teras Depan</span>
+				<span>☕ Kopian Malam</span>
 				<span>•</span>
 			</div>
 		</div>

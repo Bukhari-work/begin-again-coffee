@@ -4,26 +4,26 @@
 	import { Button } from "$lib/components/ui/button";
 	import * as Sidebar from "$lib/components/ui/sidebar";
 	import {
-		LayoutDashboard,
 		Coffee,
-		ShoppingBag,
-		Settings,
-		LogOut,
-		ChefHat,
+		ArrowLeft,
 		Calculator,
+		ListOrdered,
+		Receipt,
 		User,
+		LogOut,
 	} from "@lucide/svelte";
+	import type { LayoutData } from "./$types"; // if this file is +layout.svelte
 
 	// Assuming your +layout.server.ts passes down the session user.
 	let {
 		data,
 		children,
 	}: {
-		data: { user?: { name: string; role: string } };
+		data: LayoutData;
 		children: Snippet;
 	} = $props();
 
-	// --- LIVE CLOCK & DATE (Mirrored from POS) ---
+	// --- LIVE CLOCK & DATE ---
 	let time = $state(new Date());
 	$effect(() => {
 		const interval = setInterval(() => {
@@ -48,21 +48,16 @@
 		})
 	);
 
+	// POS Navigation Routes
 	const navItems = [
-		{ href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-		{ href: "/dashboard/orders", label: "Orders", icon: ShoppingBag },
-		{ href: "/dashboard/menu", label: "Menu", icon: ChefHat },
-		{ href: "/dashboard/inventory", label: "Inventory", icon: Coffee },
-		{ href: "/dashboard/settings", label: "Settings", icon: Settings },
+		{ title: "Register", href: "/register", icon: Calculator },
+		{ title: "Active Queue", href: "/queue", icon: ListOrdered },
+		{ title: "Transactions", href: "/transactions", icon: Receipt },
 	];
-
-	// Active state helper
-	const isActive = (href: string) =>
-		page.url.pathname === href || page.url.pathname.startsWith(href + "/");
 </script>
 
 <Sidebar.Provider>
-	<Sidebar.Root class="border-r">
+	<Sidebar.Root class="hidden border-r lg:flex">
 		<Sidebar.Header class="flex h-14 items-center justify-center border-b px-4">
 			<div class="flex w-full items-center gap-3">
 				<div
@@ -77,13 +72,13 @@
 		<Sidebar.Content>
 			<Sidebar.Group>
 				<Sidebar.GroupContent>
-					<Sidebar.Menu class="space-y-1.5 p-2">
+					<Sidebar.Menu class="space-y-2 p-2">
 						{#each navItems as item (item.href)}
-							{@const active = isActive(item.href)}
+							{@const isActive = page.url.pathname.startsWith(item.href)}
 							<Sidebar.MenuItem>
 								<Sidebar.MenuButton
-									isActive={active}
-									class="h-11 font-bold tracking-wide uppercase"
+									{isActive}
+									class="h-12 font-bold tracking-wide uppercase"
 								>
 									{#snippet child({ props })}
 										<a
@@ -92,11 +87,11 @@
 											class="flex items-center gap-3"
 										>
 											<item.icon
-												class="h-5 w-5 {active
+												class="h-5 w-5 {isActive
 													? 'text-primary'
 													: 'text-muted-foreground'}"
 											/>
-											<span>{item.label}</span>
+											<span>{item.title}</span>
 										</a>
 									{/snippet}
 								</Sidebar.MenuButton>
@@ -118,12 +113,12 @@
 				</div>
 				<div class="flex flex-col overflow-hidden">
 					<span class="truncate text-sm leading-none font-bold">
-						{data.user?.name || "Admin User"}
+						{data.user?.username || "Walk-in Cashier"}
 					</span>
 					<span
 						class="text-muted-foreground mt-1 truncate text-[10px] font-bold tracking-wider uppercase"
 					>
-						{data.user?.role || "Manager"}
+						{data.user?.role || "Staff"}
 					</span>
 				</div>
 			</div>
@@ -131,12 +126,11 @@
 			<div class="flex flex-col gap-2">
 				<Button
 					variant="outline"
+					href="/dashboard/orders"
 					class="w-full text-xs font-bold tracking-wider uppercase"
-					href="/register"
 				>
-					<Calculator class="mr-2 h-4 w-4" /> POS Terminal
+					<ArrowLeft class="mr-2 h-4 w-4" /> Back Office
 				</Button>
-
 				<form action="/login?/logout" method="POST">
 					<Button
 						variant="ghost"
@@ -150,28 +144,24 @@
 		</Sidebar.Footer>
 	</Sidebar.Root>
 
-	<Sidebar.Inset class="bg-muted/10 flex h-screen flex-col overflow-hidden">
+	<Sidebar.Inset class="bg-muted/10 flex flex-col overflow-hidden lg:h-screen">
 		<header
 			class="bg-card border-border sticky top-0 z-30 flex h-14 shrink-0 items-center justify-between border-b px-4 lg:px-6"
 		>
-			<div class="flex items-center gap-3">
-				<Sidebar.Trigger class="lg:hidden" />
-
-				<div class="bg-border hidden h-4 w-px lg:block"></div>
-				<span
-					class="text-muted-foreground hidden font-mono text-sm font-bold uppercase lg:block"
+			<div class="flex items-center gap-2 lg:hidden">
+				<div
+					class="bg-primary text-primary-foreground flex items-center justify-center rounded-md p-1.5 shadow-sm"
 				>
-					Back Office
-				</span>
-
-				<div class="ml-1 flex items-center gap-2 lg:hidden">
-					<div
-						class="bg-primary text-primary-foreground flex items-center justify-center rounded-md p-1.5 shadow-sm"
-					>
-						<Coffee class="h-4 w-4" />
-					</div>
-					<h1 class="text-sm font-black tracking-widest uppercase">Begin Again</h1>
+					<Coffee class="h-4 w-4" />
 				</div>
+				<h1 class="text-sm font-black tracking-widest uppercase">Begin Again</h1>
+			</div>
+
+			<div class="hidden items-center gap-3 lg:flex">
+				<div class="bg-border hidden h-4 w-px lg:block"></div>
+				<span class="text-muted-foreground font-mono text-sm font-bold uppercase"
+					>POS Terminal</span
+				>
 			</div>
 
 			<div class="flex items-center gap-3 sm:gap-4">
@@ -193,15 +183,47 @@
 						class="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-full"
 					>
 						<span class="text-primary font-mono text-xs font-bold uppercase">
-							{(data.user?.name || "A").charAt(0)}
+							{(data.user?.username || "C").charAt(0)}
 						</span>
 					</div>
+					<Button
+						variant="outline"
+						size="icon"
+						href="/dashboard/orders"
+						class="h-8 w-8 shrink-0"
+					>
+						<ArrowLeft class="h-4 w-4" />
+					</Button>
 				</div>
 			</div>
 		</header>
 
-		<main class="flex-1 overflow-auto p-4 lg:p-6">
+		<main class="flex-1 overflow-auto p-4 pb-24 lg:p-6 lg:pb-6">
 			{@render children()}
 		</main>
+
+		<nav
+			class="bg-card border-border pb-safe fixed right-0 bottom-0 left-0 z-40 flex h-16 justify-around border-t md:hidden"
+		>
+			{#each navItems as item (item.href)}
+				{@const isActive = page.url.pathname.startsWith(item.href)}
+				<a
+					href={item.href}
+					class="flex flex-1 flex-col items-center justify-center gap-1 transition-colors {isActive
+						? 'text-primary'
+						: 'text-muted-foreground hover:text-foreground'}"
+				>
+					<item.icon class="h-5 w-5 {isActive ? 'fill-primary/20' : ''}" />
+					<span class="text-[10px] font-bold tracking-wider uppercase">{item.title}</span>
+				</a>
+			{/each}
+		</nav>
 	</Sidebar.Inset>
 </Sidebar.Provider>
+
+<style>
+	/* Ensures the bottom nav avoids the iOS home indicator */
+	.pb-safe {
+		padding-bottom: env(safe-area-inset-bottom);
+	}
+</style>

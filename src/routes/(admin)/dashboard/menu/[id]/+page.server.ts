@@ -6,19 +6,34 @@ export const load: PageServerLoad = async ({ params }) => {
 	const itemId = params.id;
 
 	const [item, recipe, allIngredients] = await Promise.all([
-		// 1. Get the Item Name
+		// 1. Get the Item Info
 		sql`SELECT * FROM items WHERE id = ${itemId} LIMIT 1`,
 
-		// 2. Get the Current Recipe (Joined with Ingredients table)
+		// 2. Get Recipe with COST DATA
+		// We join 'view_ingredient_costs' to get the live price per gram/ml
 		sql`
-            SELECT r.ingredient_id, r.amount, i.name, i.unit
+            SELECT
+                r.ingredient_id,
+                r.amount,
+                i.name,
+                i.unit,
+                COALESCE(vic.cost_per_unit, 0) as cost_per_unit,
+                (r.amount * COALESCE(vic.cost_per_unit, 0)) as total_cost
             FROM recipes r
             JOIN ingredients i ON r.ingredient_id = i.id
-            WHERE r.item_id = ${itemId}
+            LEFT JOIN view_ingredient_costs vic ON i.id = vic.ingredient_id
+            WHERE r.item_variation_id = ${itemId}
+            ORDER BY i.name ASC
         `,
 
-		// 3. Get list of all ingredients for the dropdown
-		sql`SELECT * FROM ingredients ORDER BY name ASC`,
+		// 3. Get ingredients for dropdown (Ordered by name)
+		// Also helpful to show unit cost in the dropdown
+		sql`
+            SELECT i.*, COALESCE(vic.cost_per_unit, 0) as current_cost
+            FROM ingredients i
+            LEFT JOIN view_ingredient_costs vic ON i.id = vic.ingredient_id
+            ORDER BY i.name ASC
+        `,
 	]);
 
 	if (!item.length) throw new Error("Item not found");
@@ -33,17 +48,14 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	addIngredient: async ({ request, params }) => {
 		const formData = await request.formData();
-
 		const ingredientId = formData.get("ingredient_id") as string;
 		const amount = formData.get("amount") as string;
 		const itemId = params.id;
 
-		// Simple server-side validation
-		if (!ingredientId || !amount) {
-			return fail(400, { missing: true });
-		}
+		if (!ingredientId || !amount) return fail(400, { missing: true });
 
 		try {
+			// Upsert: If ingredient exists, just update the amount
 			await sql`
                 INSERT INTO recipes (item_id, ingredient_id, amount)
                 VALUES (${itemId}, ${ingredientId}, ${amount})
@@ -59,7 +71,6 @@ export const actions: Actions = {
 
 	removeIngredient: async ({ request, params }) => {
 		const formData = await request.formData();
-
 		const ingredientId = formData.get("ingredient_id") as string;
 		const itemId = params.id;
 

@@ -4,11 +4,11 @@
 	import { ArrowLeft, Printer, Coffee } from "@lucide/svelte";
 	import type { PageData } from "./$types";
 
-	let { data } = $props<{ data: PageData }>();
+	let { data }: { data: PageData } = $props();
 
 	let total = $derived(
 		data.items.reduce(
-			(sum: number, item: any) => sum + Number(item.price_at_purchase) * item.quantity,
+			(sum: number, item: any) => sum + Number(item.price_base) * item.quantity,
 			0
 		)
 	);
@@ -47,7 +47,7 @@
 				<span class="text-right font-medium">{data.order.customer_name || "Walk-in"}</span>
 
 				<span class="text-muted-foreground">Payment:</span>
-				<span class="text-right font-medium uppercase">{data.order.payment_type}</span>
+				<span class="text-right font-medium uppercase">{data.order.payment_method}</span>
 			</div>
 
 			<div class="space-y-3 border-y border-dashed py-4">
@@ -57,11 +57,11 @@
 							<span class="font-bold">{item.quantity}x</span>
 							<span class="ml-2">{item.name}</span>
 							<div class="text-muted-foreground ml-6 text-xs">
-								@ ${Number(item.price_at_purchase).toFixed(2)}
+								@ {Number(item.price_base) / 1000}k
 							</div>
 						</div>
 						<span class="font-mono font-medium">
-							${(Number(item.price_at_purchase) * item.quantity).toFixed(2)}
+							{(Number(item.price_base) * item.quantity) / 1000}k
 						</span>
 					</div>
 				{/each}
@@ -69,7 +69,7 @@
 
 			<div class="flex items-end justify-between pt-2">
 				<span class="text-lg font-bold">Total</span>
-				<span class="font-mono text-2xl font-bold">${total.toFixed(2)}</span>
+				<span class="font-mono text-2xl font-bold">{total / 1000}k</span>
 			</div>
 
 			<div class="pt-8 pb-4 text-center">
@@ -77,7 +77,7 @@
 					Thank you for visiting
 				</p>
 				<p class="text-muted-foreground/50 mt-1 font-mono text-[10px]">
-					{data.order.id} • {new Date().getFullYear()}
+					{data.order.id} • {new Date().toLocaleDateString("id")}
 				</p>
 			</div>
 		</CardContent>

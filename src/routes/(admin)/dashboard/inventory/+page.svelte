@@ -4,117 +4,132 @@
 	import { Label } from "$lib/components/ui/label";
 	import * as Table from "$lib/components/ui/table";
 	import * as Dialog from "$lib/components/ui/dialog";
-	import { Plus, Trash2 } from "@lucide/svelte";
+	import { Plus, Trash2, Package, ShoppingCart } from "@lucide/svelte";
 	import { enhance } from "$app/forms";
 	import type { PageData } from "./$types";
 
-	import { buttonVariants } from "$lib/components/ui/button";
 	let { data } = $props<{ data: PageData }>();
-
-	// State to control modal open/close
 	let open = $state(false);
+
+	const formatMoney = (val: number) =>
+		new Intl.NumberFormat("id-ID", {
+			style: "currency",
+			currency: "IDR",
+			maximumFractionDigits: 0,
+		}).format(val);
 </script>
 
-<div class="mb-6 flex items-center justify-between">
-	<h1 class="text-2xl font-bold tracking-tight">Inventory</h1>
+<div class="space-y-6">
+	<div
+		class="border-border flex flex-col items-start justify-between gap-4 border-b pb-6 md:flex-row md:items-center"
+	>
+		<div>
+			<h1 class="text-3xl font-black tracking-tight uppercase">Raw Inventory</h1>
+			<p class="text-muted-foreground mt-1 font-mono text-xs">
+				Manage ingredients & stock items.
+			</p>
+		</div>
+		<Button variant="outline" size="sm" href="/dashboard/inventory/purchases">
+			<ShoppingCart class="mr-2 h-4 w-4" /> Log Purchase
+		</Button>
+	</div>
 
-	<Dialog.Root bind:open>
-		<Dialog.Trigger class={buttonVariants({ variant: "default" })}>
-			<Plus class="mr-2 h-4 w-4" /> Add Item
-		</Dialog.Trigger>
-		<Dialog.Content class="sm:max-w-md">
-			<Dialog.Header>
-				<Dialog.Title>Add New Product</Dialog.Title>
-				<Dialog.Description>Add a new coffee or snack to your menu.</Dialog.Description>
-			</Dialog.Header>
-
-			<form
-				action="?/create"
-				method="POST"
-				use:enhance={() => {
-					return async ({ result, update }) => {
-						// 1. Get the update function
-						if (result.type === "success") {
-							open = false;
-						}
-						await update();
-					};
-				}}
-			>
-				<div class="grid gap-4 py-4">
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="name" class="text-right">Name</Label>
-						<Input id="name" name="name" class="col-span-3" required />
+	<div class="flex items-center justify-end">
+		<Dialog.Root bind:open>
+			<Dialog.Trigger>
+				<Button>
+					<Plus class="mr-2 h-4 w-4" /> New Ingredient
+				</Button>
+			</Dialog.Trigger>
+			<Dialog.Content class="bg-card border-2 sm:max-w-100">
+				<Dialog.Header>
+					<Dialog.Title class="tracking-wide uppercase">Add Material</Dialog.Title>
+					<Dialog.Description class="font-mono text-xs"
+						>Define a new raw material (e.g. Oat Milk).</Dialog.Description
+					>
+				</Dialog.Header>
+				<form
+					action="?/create"
+					method="POST"
+					use:enhance={() =>
+						async ({ result }) => {
+							if (result.type === "success") open = false;
+						}}
+				>
+					<div class="grid gap-4 py-4">
+						<div class="space-y-2">
+							<Label>Ingredient Name</Label>
+							<Input name="name" placeholder="e.g. Arabica Beans" required />
+						</div>
+						<div class="space-y-2">
+							<Label>Unit of Measurement</Label>
+							<select
+								name="unit"
+								class="border-input bg-background flex h-10 w-full rounded-md border px-3 py-2 text-sm"
+							>
+								<option value="grams">Grams (g)</option>
+								<option value="ml">Milliliters (ml)</option>
+								<option value="pcs">Pieces (pcs)</option>
+							</select>
+						</div>
 					</div>
+					<Dialog.Footer>
+						<Button type="submit" class="w-full">Create Ingredient</Button>
+					</Dialog.Footer>
+				</form>
+			</Dialog.Content>
+		</Dialog.Root>
+	</div>
 
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="price" class="text-right">Price</Label>
-						<Input
-							id="price"
-							name="price"
-							type="number"
-							step="0.01"
-							class="col-span-3"
-							required
-						/>
-					</div>
-
-					<div class="grid grid-cols-4 items-center gap-4">
-						<Label for="category" class="text-right">Category</Label>
-						<select
-							name="category_id"
-							class="border-input bg-background ring-offset-background col-span-3 flex h-10 w-full rounded-md border px-3 py-2 text-sm"
-						>
-							{#each data.categories as cat (cat.name)}
-								<option value={cat.id}>{cat.name}</option>
-							{/each}
-						</select>
-					</div>
-				</div>
-				<Dialog.Footer>
-					<Button type="submit">Save Product</Button>
-				</Dialog.Footer>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-</div>
-
-<div class="bg-card rounded-md border">
-	<Table.Root>
-		<Table.Header>
-			<Table.Row>
-				<Table.Head>Name</Table.Head>
-				<Table.Head>Category</Table.Head>
-				<Table.Head class="text-right">Price</Table.Head>
-				<Table.Head class="w-12"></Table.Head>
-			</Table.Row>
-		</Table.Header>
-		<Table.Body>
-			{#each data.items as item (item.id)}
+	<div class="bg-card border-border rounded-sm border">
+		<Table.Root>
+			<Table.Header>
 				<Table.Row>
-					<Table.Cell class="font-medium">{item.name}</Table.Cell>
-					<Table.Cell>{item.category_name || "-"}</Table.Cell>
-					<Table.Cell class="text-right font-mono">{item.price}</Table.Cell>
-					<Table.Cell>
-						<div class="flex items-center gap-2">
-							<a href="/dashboard/inventory/{item.id}/recipe">
-								<Button variant="outline" size="sm" class="h-8">Recipe</Button>
-							</a>
+					<Table.Head class="text-[10px] font-bold uppercase">Material Name</Table.Head>
+					<Table.Head class="text-right text-[10px] font-bold uppercase"
+						>Tracking Unit</Table.Head
+					>
+					<Table.Head class="text-right text-[10px] font-bold uppercase"
+						>Current Cost</Table.Head
+					>
+					<Table.Head class="w-15"></Table.Head>
+				</Table.Row>
+			</Table.Header>
+			<Table.Body>
+				{#each data.ingredients as item (item.id)}
+					<Table.Row>
+						<Table.Cell class="flex items-center gap-2 font-bold">
+							<Package class="text-muted-foreground h-4 w-4" />
+							{item.name}
+						</Table.Cell>
+						<Table.Cell class="text-right font-mono text-xs uppercase"
+							>{item.unit}</Table.Cell
+						>
+						<Table.Cell class="text-right font-mono text-sm">
+							{#if Number(item.current_cost) > 0}
+								{formatMoney(Number(item.current_cost))} / {item.unit}
+							{:else}
+								<span class="text-muted-foreground text-[10px] italic"
+									>No purchases yet</span
+								>
+							{/if}
+						</Table.Cell>
+						<Table.Cell>
 							<form action="?/delete" method="POST" use:enhance>
 								<input type="hidden" name="id" value={item.id} />
 								<Button
 									variant="ghost"
 									size="icon"
 									type="submit"
-									class="text-destructive h-8 w-8"
+									class="text-muted-foreground hover:text-destructive"
 								>
 									<Trash2 class="h-4 w-4" />
 								</Button>
 							</form>
-						</div>
-					</Table.Cell>
-				</Table.Row>
-			{/each}
-		</Table.Body>
-	</Table.Root>
+						</Table.Cell>
+					</Table.Row>
+				{/each}
+			</Table.Body>
+		</Table.Root>
+	</div>
 </div>

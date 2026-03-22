@@ -3,36 +3,31 @@ import { fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
 
 export const load: PageServerLoad = async () => {
-	// Fetch items + categories for the dropdown
-	const [items, categories] = await Promise.all([
-		sql`
-            SELECT i.id, i.name, i.price, c.name as category_name
-            FROM items i
-            LEFT JOIN categories c ON i.category_id = c.id
-            ORDER BY i.id DESC
-        `,
-		sql`SELECT * FROM categories ORDER BY name ASC`,
-	]);
+	// Fetch Ingredients + Their Current Cost (calculated from your purchases)
+	const ingredients = await sql`
+        SELECT
+            i.id,
+            i.name,
+            i.unit,
+            COALESCE(vic.cost_per_unit, 0) as current_cost
+        FROM ingredients i
+        LEFT JOIN view_ingredient_costs vic ON i.id = vic.ingredient_id
+        ORDER BY i.name ASC
+    `;
 
-	return { items, categories };
+	return { ingredients };
 };
 
 export const actions: Actions = {
 	create: async ({ request }) => {
 		const formData = await request.formData();
 		const name = formData.get("name") as string;
-		const price = formData.get("price") as string;
-		const categoryId = formData.get("category_id") as string;
+		const unit = formData.get("unit") as string; // e.g. 'grams', 'ml'
 
-		if (!name || !price || !categoryId) {
-			return fail(400, { missing: true });
-		}
+		if (!name || !unit) return fail(400, { missing: true });
 
 		try {
-			await sql`
-                INSERT INTO items (name, price, category_id)
-                VALUES (${name}, ${price}, ${categoryId})
-            `;
+			await sql`INSERT INTO ingredients (name, unit) VALUES (${name}, ${unit})`;
 			return { success: true };
 		} catch {
 			return fail(500, { error: "Database error" });
@@ -40,14 +35,12 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ request }) => {
-		const formData = await request.formData();
-		const id = formData.get("id") as string;
-
+		const id = (await request.formData()).get("id") as string;
 		try {
-			await sql`DELETE FROM items WHERE id = ${id}`;
+			await sql`DELETE FROM ingredients WHERE id = ${id}`;
 			return { success: true };
 		} catch {
-			return fail(500, { error: "Could not delete item" });
+			return fail(500, { error: "Item in use" });
 		}
 	},
 };

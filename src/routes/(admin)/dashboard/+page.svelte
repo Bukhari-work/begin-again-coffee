@@ -2,10 +2,10 @@
 	import StatCard from "$lib/components/dashboard/StatCard.svelte";
 	import { Card, CardContent, CardHeader, CardTitle } from "$lib/components/ui/card";
 	import * as Tabs from "$lib/components/ui/tabs";
-	import { Sun, Moon, Calendar, AlertCircle } from "@lucide/svelte";
+	import { Sun, Moon, Calendar, CircleAlert } from "@lucide/svelte";
 	import type { PageData } from "./$types";
 
-	let { data } = $props<{ data: PageData }>();
+	let { data }: { data: PageData } = $props();
 
 	// --- UTILS ---
 	const formatMoney = (val: number) =>
@@ -22,10 +22,20 @@
 	let dStats = $derived(data.daily.stats);
 	let dYesterday = $derived(data.daily.yesterday);
 	let dShiftDay = $derived(
-		data.daily.shifts.find((s: any) => s.shift === "day") || { revenue: 0, orders: 0, items: 0 }
+		data.daily.shifts.find(
+			(s: { shift: string; orders: string; revenue: string; items: string }) =>
+				s.shift === "day"
+		) || {
+			revenue: 0,
+			orders: 0,
+			items: 0,
+		}
 	);
 	let dShiftNight = $derived(
-		data.daily.shifts.find((s: any) => s.shift === "night") || {
+		data.daily.shifts.find(
+			(s: { shift: string; orders: string; revenue: string; items: string }) =>
+				s.shift === "night"
+		) || {
 			revenue: 0,
 			orders: 0,
 			items: 0,
@@ -35,11 +45,24 @@
 	// Monthly
 	let mStats = $derived(data.monthly.stats);
 	let mTrend = $derived(data.monthly.trend);
-	let mChartMax = $derived(Math.max(...mTrend.map((d: any) => Number(d.revenue)), 1));
+	let mChartMax = $derived(
+		Math.max(
+			...mTrend.map((d: { date: string; revenue: string; orders: string }) =>
+				Number(d.revenue)
+			),
+			1
+		)
+	);
 
 	// NEW: Calculate max for the Heatmap once
 	let heatMax = $derived(
-		Math.max(...(data.monthly.heatmap || []).map((h: any) => Number(h.avg_revenue)), 1)
+		Math.max(
+			...(data.monthly.heatmap || []).map(
+				(h: { day_name: string; day_index: string; avg_revenue: string }) =>
+					Number(h.avg_revenue)
+			),
+			1
+		)
 	);
 </script>
 
@@ -156,7 +179,7 @@
 					</CardHeader>
 					<CardContent>
 						<div class="space-y-4">
-							{#each data.daily.categories as cat}
+							{#each data.daily.categories as cat (cat.category)}
 								{@const share = (cat.revenue / dStats.revenue) * 100}
 								<div class="space-y-1">
 									<div class="flex justify-between font-mono text-xs">
@@ -190,7 +213,7 @@
 				class="border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-900/10"
 			>
 				<CardHeader class="flex flex-row items-center gap-2 pb-2">
-					<AlertCircle class="h-4 w-4 text-yellow-600" />
+					<CircleAlert class="h-4 w-4 text-yellow-600" />
 					<CardTitle class="text-xs font-bold text-yellow-700 uppercase"
 						>Daily Log / Notes</CardTitle
 					>
@@ -236,9 +259,9 @@
 				</CardHeader>
 				<CardContent>
 					<div
-						class="border-border flex h-[200px] w-full items-end justify-between gap-1 border-b px-2 pt-4"
+						class="border-border flex h-50 w-full items-end justify-between gap-1 border-b px-2 pt-4"
 					>
-						{#each mTrend as day}
+						{#each mTrend as day (day.date)}
 							{@const height = (Number(day.revenue) / mChartMax) * 100}
 							<div
 								class="group relative flex h-full w-full flex-col items-center justify-end gap-1"
@@ -250,7 +273,7 @@
 									<span>{formatMoney(Number(day.revenue))}</span>
 								</div>
 								<div
-									class="bg-primary/80 hover:bg-primary w-full min-w-[4px] rounded-t-sm transition-all"
+									class="bg-primary/80 hover:bg-primary w-full min-w-1 rounded-t-sm transition-all"
 									style="height: {Math.max(4, height)}%; opacity: {Math.max(
 										0.3,
 										height / 100
@@ -275,7 +298,7 @@
 					</CardHeader>
 					<CardContent>
 						<div class="grid grid-cols-7 gap-2">
-							{#each data.monthly.heatmap as day}
+							{#each data.monthly.heatmap as day (day.day_name)}
 								{@const heatHeight = (day.avg_revenue / heatMax) * 100}
 
 								<div class="flex flex-col items-center gap-2">
@@ -313,7 +336,7 @@
 								</tr>
 							</thead>
 							<tbody class="divide-border divide-y">
-								{#each data.monthly.items as item}
+								{#each data.monthly.items as item (item.name)}
 									<tr>
 										<td class="p-3 font-bold">{item.name}</td>
 										<td class="text-muted-foreground p-3 text-right font-mono"

@@ -11,7 +11,7 @@ const globalForPostgres = globalThis as unknown as {
 	__postgres: ReturnType<typeof postgres> | undefined;
 };
 
-// 2. Instantiate or reuse the connection
+// Standard connection pool
 const sql =
 	globalForPostgres.__postgres ??
 	postgres(env.DATABASE_URL, {
@@ -21,7 +21,7 @@ const sql =
 		connect_timeout: 10,
 	});
 
-// 3. Cache it in development mode
+// Cache the connection in development mode to prevent Hot Module Replacement crashes
 if (dev) {
 	globalForPostgres.__postgres = sql;
 }

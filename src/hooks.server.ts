@@ -1,47 +1,65 @@
 import type { Handle } from "@sveltejs/kit";
+import { createServerClient } from "@supabase/ssr";
+import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from "$env/static/public";
 import sql from "$lib/server/db";
 
-// Active UUID validation to protect the database from malformed queries
-const isValidUuid = (id: string) =>
-	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-
 export const handle: Handle = async ({ event, resolve }) => {
-	const sessionId = event.cookies.get("session");
+	// 1. Initialize the Supabase Auth client for this specific request
+	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+		cookies: {
+			getAll: () => event.cookies.getAll(),
+			setAll: (cookiesToSet) => {
+				cookiesToSet.forEach(({ name, value, options }) => {
+					event.cookies.set(name, value, {
+						...options,
+						path: "/",
+						secure: event.url.protocol === "https:",
+					});
+				});
+			},
+		},
+	});
 
-	if (!sessionId) {
-		event.locals.user = null;
-		return resolve(event);
-	}
+	// 2. Cryptographically verify the session token (Safe for Server-Side Rendering)
+	const {
+		data: { user },
+		error: authError,
+	} = await event.locals.supabase.auth.getUser();
 
-	// 1. Fast Fail: Reject non-UUIDs immediately without querying the DB
-	if (!isValidUuid(sessionId)) {
-		event.cookies.delete("session", { path: "/" });
-		event.locals.user = null;
-		return resolve(event);
-	}
+	if (user && !authError) {
+		try {
+			// 3. Fetch app-specific data directly via postgres.js
+			const result = await sql`
+                SELECT username, role
+                FROM public.profiles
+                WHERE id = ${user.id}
+                LIMIT 1
+            `;
 
-	try {
-		// 2. Query the active session
-		const result = await sql`
-            SELECT u.id, u.username, u.role
-            FROM sessions s
-            JOIN users u ON s.user_id = u.id
-            WHERE s.id = ${sessionId} AND s.expires_at > NOW()
-        `;
-
-		if (result.length > 0) {
-			// Use NonNullable to assure TypeScript this isn't the 'null' union type
-			event.locals.user = result[0] as NonNullable<App.Locals["user"]>;
-		} else {
-			// Session expired or doesn't exist
+			if (result.length > 0) {
+				// 4. Populate locals so your +layout.server.ts guards can read it
+				event.locals.user = {
+					id: user.id,
+					username: result[0].username,
+					role: result[0].role,
+				};
+			} else {
+				// User authenticated, but no profile found in the database
+				event.locals.user = null;
+			}
+		} catch (error) {
+			console.error("Failed to fetch user profile:", error);
 			event.locals.user = null;
-			event.cookies.delete("session", { path: "/" });
 		}
-	} catch (error) {
-		console.error("Session validation error:", error);
+	} else {
+		// No valid session token
 		event.locals.user = null;
-		event.cookies.delete("session", { path: "/" });
 	}
 
-	return resolve(event);
+	// 5. Resolve the SvelteKit request
+	return resolve(event, {
+		filterSerializedResponseHeaders(name) {
+			return name === "content-range" || name === "x-supabase-api-version";
+		},
+	});
 };

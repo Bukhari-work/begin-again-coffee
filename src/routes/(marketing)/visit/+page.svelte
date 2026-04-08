@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from "$lib/components/ui/button";
-	import { Clock, Wifi, Coffee, Sun, Phone, Copy, Instagram, Check } from "@lucide/svelte";
+	import { Clock, Wifi, Coffee, Sun, Phone, Copy, Check, Focus } from "@lucide/svelte";
 	import ClockDigital from "$lib/components/ClockDigital.svelte";
 	import ShopStatus from "$lib/components/ShopStatus.svelte";
 
@@ -280,8 +280,8 @@
 					class="bg-foreground text-background flex items-center justify-between rounded-xl p-4 transition-opacity hover:opacity-90"
 				>
 					<div class="flex items-center gap-2">
-						<Instagram class="h-5 w-5" />
-						<span class="text-sm font-bold uppercase">Follow Daily Updates</span>
+						<Focus class="h-5 w-5" />
+						<span class="text-sm font-bold uppercase">Follow Weekly Updates</span>
 					</div>
 					<span class="font-mono text-xs">@begin.againcoffee</span>
 				</a>

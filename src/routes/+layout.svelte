@@ -13,7 +13,7 @@
 		page.data.meta?.description ||
 			"Specialty coffee, expertly brewed in Amuntai. Order ahead, check our menu, or visit our shop."
 	);
-	let image = $derived(page.data.meta?.image || "/og-image.jpg"); // Put a default image in your /static folder
+	let image = $derived(page.data.meta?.image || "/og-image.webp");
 
 	// This ensures the canonical URL is ALWAYS the clean, base path without ?search=queries
 	let url = $derived(`${page.url.origin}${page.url.pathname}`);

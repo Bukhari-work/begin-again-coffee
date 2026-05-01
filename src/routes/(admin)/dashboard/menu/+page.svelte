@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from "$lib/components/ui/button";
+	import { Button, buttonVariants } from "$lib/components/ui/button";
 	import { Input } from "$lib/components/ui/input";
 	import { Label } from "$lib/components/ui/label";
 	import * as Table from "$lib/components/ui/table";
@@ -16,6 +16,9 @@
 	} from "@lucide/svelte";
 	import { enhance } from "$app/forms";
 	import type { PageData } from "./$types";
+
+	// Import the new refresh button
+	import ButtonRefreshCogs from "$lib/components/dashboard/ButtonRefreshCogs.svelte";
 
 	let { data } = $props<{ data: PageData }>();
 	let open = $state(false);
@@ -48,9 +51,13 @@
 				Define product compositions & pricing.
 			</p>
 		</div>
-		<Button variant="outline" size="sm" href="/dashboard/orders/profit">
-			<TrendingUp class="mr-2 h-4 w-4" /> Profit Analysis
-		</Button>
+		<div class="flex items-center gap-2">
+			<ButtonRefreshCogs />
+
+			<Button variant="outline" size="sm" href="/dashboard/orders/profit">
+				<TrendingUp class="mr-2 h-4 w-4" /> Profit Analysis
+			</Button>
+		</div>
 	</div>
 
 	<div class="flex items-center justify-between gap-4">
@@ -65,18 +72,17 @@
 		</div>
 
 		<Dialog.Root bind:open>
-			<Dialog.Trigger>
-				<Button>
-					<Plus class="mr-2 h-4 w-4" /> New Item
-				</Button>
+			<Dialog.Trigger type="button" class={buttonVariants({ variant: "default" })}>
+				<Plus class="mr-2 h-4 w-4" /> New Item
 			</Dialog.Trigger>
-			<Dialog.Content class="dark:bg-card border-2 border-dashed bg-[#fffdf5] sm:max-w-105">
+			<Dialog.Content class="dark:bg-card border-2 border-dashed bg-[#fffdf5] sm:max-w-md">
 				<Dialog.Header>
 					<Dialog.Title class="font-black tracking-wide uppercase"
 						>New Product</Dialog.Title
 					>
 					<Dialog.Description class="font-mono text-xs">
-						Create a new item entry for the POS.
+						Create a new item entry. A 'Regular' variation will be generated
+						automatically.
 					</Dialog.Description>
 				</Dialog.Header>
 
@@ -104,7 +110,7 @@
 						<div class="grid grid-cols-2 gap-4">
 							<div class="space-y-2">
 								<Label class="text-muted-foreground text-[10px] font-bold uppercase"
-									>Selling Price</Label
+									>Base Selling Price</Label
 								>
 								<div class="relative">
 									<span
@@ -190,18 +196,20 @@
 				{:else}
 					{#each filteredItems as item (item.id)}
 						<Table.Row class="group hover:bg-secondary/20 transition-colors">
-							<Table.Cell class="text-muted-foreground font-mono text-xs">
+							<Table.Cell
+								class="text-muted-foreground pt-4 align-top font-mono text-xs"
+							>
 								#{item.id}
 							</Table.Cell>
 
-							<Table.Cell>
+							<Table.Cell class="pt-4 align-top">
 								<div class="flex items-center gap-2 font-bold">
 									<Coffee class="text-primary h-4 w-4" />
 									{item.name}
 								</div>
 							</Table.Cell>
 
-							<Table.Cell>
+							<Table.Cell class="pt-4 align-top">
 								<Badge
 									variant="outline"
 									class="bg-background font-mono text-[10px] uppercase"
@@ -210,40 +218,69 @@
 								</Badge>
 							</Table.Cell>
 
-							<Table.Cell class="text-right font-mono text-sm font-bold">
-								{formatMoney(Number(item.price))}
+							<Table.Cell class="pt-4 text-right align-top">
+								<div class="flex flex-col gap-3">
+									{#each item.variations as v (v.id)}
+										<div class="font-mono text-sm whitespace-nowrap">
+											<span class="text-muted-foreground mr-2 text-xs">
+												{v.name}:
+											</span>
+											<span class="font-bold"
+												>{formatMoney(Number(v.price))}
+											</span>
+										</div>
+									{/each}
+								</div>
 							</Table.Cell>
 
-							<Table.Cell class="text-muted-foreground text-right font-mono text-xs">
-								{#if Number(item.cost) > 0}
-									{formatMoney(Number(item.cost))}
-								{:else}
-									<span class="text-orange-400">-</span>
-								{/if}
+							<Table.Cell
+								class="text-muted-foreground pt-4 text-right align-top font-mono text-xs"
+							>
+								<div class="flex flex-col gap-3">
+									{#each item.variations as v (v.id)}
+										<div
+											class="flex h-5 items-center justify-end whitespace-nowrap"
+										>
+											{#if Number(v.cost) > 0}
+												{formatMoney(Number(v.cost))}
+											{:else}
+												<span class="text-orange-400">-</span>
+											{/if}
+										</div>
+									{/each}
+								</div>
 							</Table.Cell>
 
-							<Table.Cell class="text-center">
-								{#if Number(item.cost) === 0}
-									<Badge
-										variant="secondary"
-										class="gap-1 border border-orange-200 bg-orange-50 font-mono text-[10px] text-orange-600"
-									>
-										<CircleAlert class="h-3 w-3" /> No Recipe
-									</Badge>
-								{:else}
-									{@const margin = Number(item.margin)}
-									<Badge
-										variant={margin < 50 ? "destructive" : "outline"}
-										class="font-mono text-[10px] {margin >= 50
-											? 'border-green-200 bg-green-50 text-green-700'
-											: ''}"
-									>
-										{margin}%
-									</Badge>
-								{/if}
+							<Table.Cell class="pt-4 text-center align-top">
+								<div class="flex flex-col items-center gap-3">
+									{#each item.variations as v (v.id)}
+										<div class="flex h-5 items-center">
+											{#if Number(v.cost) === 0}
+												<Badge
+													variant="secondary"
+													class="gap-1 border border-orange-200 bg-orange-50 font-mono text-[10px] text-orange-600"
+												>
+													<CircleAlert class="h-3 w-3" /> No Recipe
+												</Badge>
+											{:else}
+												{@const margin = Number(v.margin)}
+												<Badge
+													variant={margin < 50
+														? "destructive"
+														: "outline"}
+													class="font-mono text-[10px] {margin >= 50
+														? 'border-green-200 bg-green-50 text-green-700'
+														: ''}"
+												>
+													{margin}%
+												</Badge>
+											{/if}
+										</div>
+									{/each}
+								</div>
 							</Table.Cell>
 
-							<Table.Cell>
+							<Table.Cell class="pt-4 align-top">
 								<div
 									class="flex items-center justify-end gap-2 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100"
 								>
@@ -252,6 +289,7 @@
 											variant="ghost"
 											size="icon"
 											title="Edit Recipe"
+											aria-label="Edit Recipe"
 											class="text-muted-foreground hover:text-primary h-8 w-8"
 										>
 											<ScanBarcode class="h-4 w-4" />
@@ -263,6 +301,7 @@
 											variant="ghost"
 											size="icon"
 											type="submit"
+											aria-label="Delete Item"
 											class="text-muted-foreground hover:text-destructive h-8 w-8"
 										>
 											<Trash2 class="h-4 w-4" />

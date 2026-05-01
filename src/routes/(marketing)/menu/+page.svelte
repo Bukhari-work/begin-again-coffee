@@ -14,13 +14,14 @@
 		description: string | null;
 		category_name: string | null;
 		featured_rank: number;
+		image_url: string | null;
 	}
 
 	// Logic: Filter by rank, availability & Sort
 	let featuredMenu = $derived.by(() => {
 		const items = data.menuItems as MenuItem[];
 		const featured = items.filter((item) => item.featured_rank > 5);
-		return featured.sort((a, b) => (a.featured_rank ?? 0) - (b.featured_rank ?? 0));
+		return featured;
 	});
 
 	let groupedMenu = $derived.by(() => {

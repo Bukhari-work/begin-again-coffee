@@ -1,6 +1,6 @@
-<script lang="ts">
-	import { page } from '$app/state';
-	import { resolve } from '$app/paths';
+<!-- <script lang="ts">
+	import { page } from "$app/state";
+	import { resolve } from "$app/paths";
 
 	// Import the specific sidebar parts
 	import {
@@ -13,15 +13,15 @@
 		SidebarMenu,
 		SidebarMenuButton,
 		SidebarMenuItem,
-		SidebarRail
-	} from '$lib/components/ui/sidebar/index.js';
+		SidebarRail,
+	} from "$lib/components/ui/sidebar/index.js";
 
 	// Import icons
-	import { House, LogOut, Command } from '@lucide/svelte';
+	import { House, LogOut, Command } from "@lucide/svelte";
 
 	// Define your navigation data here
 	const navItems = [
-		{ title: 'Home', url: '/', icon: House }
+		{ title: "Home", url: "/", icon: House },
 		// { title: 'Orders', url: '/orders', icon: ShoppingCart },
 		// { title: 'Products', url: '/products', icon: Package },
 		// { title: 'Customers', url: '/customers', icon: Users },
@@ -35,9 +35,9 @@
 			<SidebarMenuItem>
 				<SidebarMenuButton size="lg">
 					{#snippet child({ props })}
-						<a href={resolve('/')} {...props}>
+						<a href={resolve("/")} {...props}>
 							<div
-								class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"
+								class="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg"
 							>
 								<Command class="size-4" />
 							</div>
@@ -78,7 +78,7 @@
 			<SidebarMenuItem>
 				<SidebarMenuButton>
 					{#snippet child({ props })}
-						<a href={resolve('/logout')} {...props}>
+						<a href={resolve("/login?/logout")} {...props}>
 							<LogOut />
 							<span>Logout</span>
 						</a>
@@ -89,4 +89,4 @@
 	</SidebarFooter>
 
 	<SidebarRail />
-</Sidebar>
+</Sidebar> -->

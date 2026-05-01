@@ -179,7 +179,7 @@
 					</CardHeader>
 					<CardContent>
 						<div class="space-y-4">
-							{#each data.daily.categories as cat (cat.category)}
+							{#each data.daily.categories as cat (cat.item_category)}
 								{@const share = (cat.revenue / dStats.revenue) * 100}
 								<div class="space-y-1">
 									<div class="flex justify-between font-mono text-xs">
@@ -336,7 +336,7 @@
 								</tr>
 							</thead>
 							<tbody class="divide-border divide-y">
-								{#each data.monthly.items as item (item.name)}
+								{#each data.monthly.items as item (item.parent_item_name)}
 									<tr>
 										<td class="p-3 font-bold">{item.name}</td>
 										<td class="text-muted-foreground p-3 text-right font-mono"

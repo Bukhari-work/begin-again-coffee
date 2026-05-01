@@ -40,7 +40,7 @@
 				<!-- <div class="bg-primary text-primary-foreground p-1 shadow-sm">
 					<Coffee class="h-4 w-4" />
 				</div> -->
-				<img src="/favicon.webp" class="h-8 w-8" alt="Begin Again Logo" />
+				<img src="/favicon.svg" class="h-8 w-8" alt="Begin Again Logo" />
 				<span class="hidden min-[350px]:inline">Begin Again</span>
 			</a>
 

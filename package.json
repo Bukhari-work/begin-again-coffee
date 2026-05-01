@@ -11,13 +11,13 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
-		"lint": "prettier --check . && eslint ."
+		"lint": "prettier --check . && eslint . --no-warn-ignored"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^1.4.1",
 		"@eslint/js": "^9.39.2",
-		"@internationalized/date": "^3.10.1",
-		"@lucide/svelte": "^0.561.0",
+		"@internationalized/date": "^3.12.0",
+		"@lucide/svelte": "^1.7.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/adapter-vercel": "^6.3.3",
 		"@sveltejs/kit": "^2.49.4",
@@ -27,7 +27,7 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/bcryptjs": "^3.0.0",
 		"@types/node": "^22.19.5",
-		"bits-ui": "^2.15.4",
+		"bits-ui": "^2.17.2",
 		"clsx": "^2.1.1",
 		"embla-carousel-svelte": "^8.6.0",
 		"eslint": "^9.39.2",
@@ -37,6 +37,7 @@
 		"prettier": "^3.7.4",
 		"prettier-plugin-svelte": "^3.4.1",
 		"prettier-plugin-tailwindcss": "^0.7.2",
+		"supabase": "^2.95.1",
 		"svelte": "^5.46.1",
 		"svelte-check": "^4.3.5",
 		"tailwind-merge": "^3.4.0",
@@ -50,6 +51,8 @@
 	},
 	"packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
 	"dependencies": {
+		"@supabase/ssr": "^0.9.0",
+		"@supabase/supabase-js": "^2.99.3",
 		"bcryptjs": "^3.0.3",
 		"dotenv": "^17.2.3",
 		"postgres": "^3.4.8"

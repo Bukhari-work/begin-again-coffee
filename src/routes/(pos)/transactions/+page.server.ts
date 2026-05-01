@@ -2,28 +2,60 @@ import sql from "$lib/server/db";
 import { fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
 
+// ==========================================
+// 🧠 DOMAIN TYPES
+// ==========================================
+
+type OrderRow = {
+	id: number;
+	customer_name: string | null;
+	payment_method: string | null;
+	shift: string;
+};
+
+type OrderItemRow = {
+	id: number;
+	item_variation_id: number;
+	quantity: number;
+	price_base: number;
+	cogs_base: number;
+	price_total: number;
+	cogs_total: number;
+};
+
+// ==========================================
+// LOAD
+// ==========================================
+
 export const load: PageServerLoad = async () => {
+	// 1. Fetch Today's Transactions
 	const todayOrders = await sql`
         SELECT
             o.id,
             o.customer_name,
             o.payment_method,
-            o.status,
             o.created_at,
             o.price_total,
             o.shift,
             o.kind,
+            o.parent_order_id,
             COALESCE(
                 json_agg(
                     json_build_object(
-                        'name', i.name,
-                        'qty', oi.quantity
+                        'id', oi.id,
+                        'name', i.name || ' (' || iv.name || ')',
+                        'qty', oi.quantity,
+                        'price_total', oi.price_total,
+                        'ledger_status', oi.ledger_status,
+                        'fulfillment_status', oi.fulfillment_status,
+                        'original_order_item_id', oi.original_order_item_id
                     )
-                ) FILTER (WHERE oi.id IS NOT NULL AND oi.status != 'voided'), '[]'::json
+                ) FILTER (WHERE oi.id IS NOT NULL), '[]'::json
             ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        LEFT JOIN items i ON oi.item_id = i.id
+        FROM public.orders o
+        LEFT JOIN public.order_items oi ON o.id = oi.order_id
+        LEFT JOIN public.item_variations iv ON oi.item_variation_id = iv.id
+        LEFT JOIN public.items i ON iv.item_id = i.id
         WHERE o.created_at >= CURRENT_DATE
           AND o.created_at < CURRENT_DATE + INTERVAL '1 day'
         GROUP BY o.id
@@ -33,94 +65,143 @@ export const load: PageServerLoad = async () => {
 	return { todayOrders };
 };
 
+// ==========================================
+// ACTIONS
+// ==========================================
+
 export const actions: Actions = {
-	refundOrder: async ({ request, locals }) => {
-		// 1. Security check: Only logged-in staff can issue refunds
+	partialRefund: async ({ request, locals }) => {
 		if (!locals.user) {
 			return fail(401, { error: "Unauthorized. Please log in." });
 		}
-
-		// FIX: Extract the ID into a const so TypeScript knows it can never be null inside the transaction callback
-		const cashierId = locals.user.id;
+		const profileId = locals.user.id;
 
 		const formData = await request.formData();
-		const orderIdStr = formData.get("order_id") as string;
-		const originalOrderId = orderIdStr ? Number(orderIdStr) : null;
+		const orderId = Number(formData.get("order_id"));
 
-		if (!originalOrderId) return fail(400, { error: "Missing order ID" });
+		const itemIdsToRefundJson = formData.get("item_ids") as string;
+		if (!itemIdsToRefundJson) return fail(400, { error: "No items selected." });
+
+		let itemIdsToRefund: number[];
+		try {
+			itemIdsToRefund = JSON.parse(itemIdsToRefundJson);
+		} catch {
+			return fail(400, { error: "Invalid item data." });
+		}
+
+		if (!Array.isArray(itemIdsToRefund) || itemIdsToRefund.length === 0) {
+			return fail(400, { error: "No items selected." });
+		}
 
 		try {
 			await sql.begin(async (tx) => {
 				const q = tx as unknown as typeof sql;
 
-				// 2. Fetch and Validate the Original Order
-				const [original] = await q`SELECT * FROM orders WHERE id = ${originalOrderId}`;
+				// 1. Fetch the Original Ticket and LOCK IT
+				const [original] = await q<OrderRow[]>`
+                    SELECT * FROM public.orders
+                    WHERE id = ${orderId}
+                    FOR UPDATE
+                `;
+				if (!original) throw new Error("Original order not found.");
 
-				if (!original) throw new Error("Order not found");
-				if (original.kind !== "sale") throw new Error("You can only refund a sale ticket.");
-				if (original.payment_method === null)
-					throw new Error("Cannot refund an unpaid ticket.");
-				if (original.status === "cancelled")
-					throw new Error("Cannot refund a voided ticket.");
+				// 2. Fetch + Validate Ownership + Lock Rows (FOR UPDATE)
+				const items = await q<OrderItemRow[]>`
+                    SELECT id, item_variation_id, quantity, price_base, cogs_base, price_total, cogs_total
+                    FROM public.order_items
+                    WHERE id = ANY(${itemIdsToRefund}) AND order_id = ${orderId}
+                    FOR UPDATE
+                `;
 
-				// 3. Prevent Double Refunds
-				const [existingRefund] = await q`
-                    SELECT id FROM orders
-                    WHERE parent_order_id = ${originalOrderId}
+				if (items.length === 0) throw new Error("Items not found.");
+				if (items.length !== itemIdsToRefund.length) {
+					throw new Error(
+						"Security Violation: Item mismatch. Some items may not belong to this order."
+					);
+				}
+
+				// 3. Double-Refund Guard (After locks and validation)
+				const existingRefunds = await q`
+                    SELECT 1
+                    FROM public.order_items
+                    WHERE original_order_item_id = ANY(${itemIdsToRefund})
                     LIMIT 1
                 `;
-				if (existingRefund) {
-					throw new Error("This ticket has already been refunded.");
+
+				if (existingRefunds.length > 0) {
+					throw new Error(
+						"Security Violation: One or more of these specific items have already been refunded."
+					);
 				}
 
-				// 4. Create the Refund Ticket (The Ledger Entry)
+				// Calculate ONLY the negative revenue.
+				const refundPriceTotal =
+					items.reduce((sum, item) => sum + Number(item.price_total), 0) * -1;
+
+				// 4. Create the negative counter-weight ticket.
 				const [refundOrder] = await q`
-                    INSERT INTO orders (
-                        customer_name, payment_method, shift, price_total, cogs_total,
-                        status, user_id, kind, parent_order_id
-                    ) VALUES (
-                        ${original.customer_name}, ${original.payment_method}, ${original.shift},
-                        ${original.price_total}, ${original.cogs_total},
-                        'served', ${cashierId}, 'refund', ${original.id}
-                    ) RETURNING id
-                `;
-
-				// 5. Clone the Line Items to the Refund Ticket
-				await q`
-                    INSERT INTO order_items (
-                        order_id, item_id, price_base, quantity, cogs_base, price_total, cogs_total, status
+                    INSERT INTO public.orders (
+                        parent_order_id, profile_id, kind, payment_method,
+                        price_total, cogs_total, shift, customer_name
                     )
-                    SELECT
-                        ${refundOrder.id}, item_id, price_base, quantity, cogs_base, price_total, cogs_total, 'refunded'
-                    FROM order_items
-                    WHERE order_id = ${original.id} AND status = 'active'
+                    VALUES (
+                        ${orderId}, ${profileId}, 'refund', ${original.payment_method},
+                        ${refundPriceTotal}, 0, ${original.shift}, ${original.customer_name}
+                    )
+                    RETURNING id
                 `;
 
-				// --- THE KITCHEN & INVENTORY FIX ---
-
-				// 6. Update the Original Items
-				await q`
-                    UPDATE order_items
-                    SET status = 'refunded'
-                    WHERE order_id = ${original.id} AND status = 'active'
-                `;
-
-				// 7. Halt the Barista (If necessary)
-				if (original.status === "preparing") {
-					await q`
-                        UPDATE orders
-                        SET status = 'cancelled'
-                        WHERE id = ${original.id}
+				// 5. Clone the items AND their modifiers into the new ticket
+				for (const item of items) {
+					const [refundOrderItem] = await q`
+                        INSERT INTO public.order_items (
+                            order_id, item_variation_id, quantity, price_base, cogs_base,
+                            price_total, cogs_total, ledger_status, fulfillment_status,
+                            original_order_item_id
+                        )
+                        VALUES (
+                            ${refundOrder.id}, ${item.item_variation_id}, ${-item.quantity}, ${item.price_base}, 0,
+                            ${-Number(item.price_total)}, 0, 'refunded'::public.ledger_state, 'cancelled'::public.fulfillment_state,
+                            ${item.id}
+                        )
+                        RETURNING id
                     `;
+
+					// Clone the modifiers to keep reporting perfectly balanced!
+					const modifiers = await q`
+                        SELECT modifier_id, quantity, price_base, resolved_ingredient_id
+                        FROM public.order_item_modifiers
+                        WHERE order_item_id = ${item.id}
+                    `;
+
+					for (const mod of modifiers) {
+						await q`
+                            INSERT INTO public.order_item_modifiers (
+                                order_item_id, modifier_id, quantity, price_base, cogs_base, resolved_ingredient_id
+                            )
+                            VALUES (
+                                ${refundOrderItem.id}, ${mod.modifier_id}, ${-mod.quantity}, ${mod.price_base}, 0, ${mod.resolved_ingredient_id}
+                            )
+                        `;
+					}
 				}
+
+				// 6. Kitchen Intercept
+				await q`
+                    UPDATE public.order_items
+                    SET fulfillment_status = 'cancelled'::public.fulfillment_state
+                    WHERE id = ANY(${itemIdsToRefund})
+                      AND ledger_status = 'active'
+                      AND fulfillment_status = 'preparing'
+                `;
 			});
 
 			return { success: true };
 		} catch (error) {
-			console.error("Refund Error:", error);
+			console.error("Partial Refund DB Error:", error);
 			const errorMessage =
-				error instanceof Error ? error.message : "Failed to process refund.";
-			return fail(400, { error: errorMessage });
+				error instanceof Error ? error.message : "Failed to process partial refund.";
+			return fail(500, { error: errorMessage });
 		}
 	},
 };

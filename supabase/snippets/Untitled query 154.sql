@@ -1,0 +1,2 @@
+CREATE INDEX idx_oim_resolved_ingredient_id
+ON public.order_item_modifiers (resolved_ingredient_id);

@@ -4,59 +4,67 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from "$env/static/publi
 import sql from "$lib/server/db";
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// 1. Initialize the Supabase Auth client for this specific request
+	// 1. Initialize Supabase
 	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+		global: {
+			fetch: event.fetch,
+		},
 		cookies: {
 			getAll: () => event.cookies.getAll(),
 			setAll: (cookiesToSet) => {
 				cookiesToSet.forEach(({ name, value, options }) => {
-					event.cookies.set(name, value, {
-						...options,
-						path: "/",
-						secure: event.url.protocol === "https:",
-					});
+					event.cookies.set(name, value, { ...options, path: "/" });
 				});
 			},
 		},
 	});
 
-	// 2. Cryptographically verify the session token (Safe for Server-Side Rendering)
+	// 2. Validate the JWT
 	const {
-		data: { user },
-		error: authError,
+		data: { user: authUser },
 	} = await event.locals.supabase.auth.getUser();
 
-	if (user && !authError) {
-		try {
-			// 3. Fetch app-specific data directly via postgres.js
+	// 3. The Early Return Guard Clause
+	if (!authUser) {
+		event.locals.user = null;
+		return resolve(event);
+	}
+
+	try {
+		// 4. Check the JWT Metadata first!
+		let role = authUser.user_metadata?.role;
+		let username = authUser.user_metadata?.username;
+
+		// 5. Only hit the DB if metadata is missing
+		if (!role || !username) {
+			console.log("JWT Metadata missing, fetching from DB");
 			const result = await sql`
                 SELECT username, role
                 FROM public.profiles
-                WHERE id = ${user.id}
+                WHERE id = ${authUser.id}
                 LIMIT 1
             `;
 
 			if (result.length > 0) {
-				// 4. Populate locals so your +layout.server.ts guards can read it
-				event.locals.user = {
-					id: user.id,
-					username: result[0].username,
-					role: result[0].role,
-				};
-			} else {
-				// User authenticated, but no profile found in the database
-				event.locals.user = null;
+				username = result[0].username;
+				role = result[0].role;
 			}
-		} catch (error) {
-			console.error("Failed to fetch user profile:", error);
+		}
+
+		// 6. Final Assignment
+		if (role && username) {
+			event.locals.user = { id: authUser.id, username, role } as NonNullable<
+				App.Locals["user"]
+			>;
+		} else {
 			event.locals.user = null;
 		}
-	} else {
-		// No valid session token
+	} catch (error) {
+		console.error("Profile fetch error:", error);
 		event.locals.user = null;
 	}
 
-	// 5. Resolve the SvelteKit request
+	// 7. Resolve the request
 	return resolve(event, {
 		filterSerializedResponseHeaders(name) {
 			return name === "content-range" || name === "x-supabase-api-version";

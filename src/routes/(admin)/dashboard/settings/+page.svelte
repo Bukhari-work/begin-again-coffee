@@ -41,6 +41,16 @@
 					>
 						<div class="grid gap-4 py-4">
 							<div class="grid gap-2">
+								<Label for="email">Email</Label>
+								<Input
+									id="email"
+									name="email"
+									type="email"
+									placeholder="barista@beginagain.com"
+									required
+								/>
+							</div>
+							<div class="grid gap-2">
 								<Label for="username">Username</Label>
 								<Input id="username" name="username" required />
 							</div>

@@ -1,7 +1,8 @@
 import sql from "$lib/server/db";
 import type { PageServerLoad } from "./$types";
 
-export const load: PageServerLoad = async ({ parent }) => {
+export const load: PageServerLoad = async ({ parent, setHeaders }) => {
+	setHeaders({ "Cache-Control": "max-age=300" });
 	const { user } = await parent();
 
 	// ==========================================
@@ -10,49 +11,64 @@ export const load: PageServerLoad = async ({ parent }) => {
 	const dailyPromise = sql`
         WITH today_metrics AS (
             SELECT
-                COUNT(DISTINCT o.id) as orders,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue,
-                COALESCE(SUM(oi.quantity), 0) as items_sold
-            FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.created_at::DATE = CURRENT_DATE
+                count(*) FILTER (WHERE kind = 'sale') as orders,
+                COALESCE(SUM(price_total), 0) as revenue
+            FROM orders
+            WHERE created_at >= CURRENT_DATE
+  AND created_at < CURRENT_DATE + INTERVAL '1 day'
+        ),
+        today_items AS (
+            -- We query items separately to keep the top-level revenue query lightning fast
+            SELECT COALESCE(SUM(quantity), 0) as items_sold
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.id
+            WHERE o.created_at >= CURRENT_DATE
+  AND o.created_at < CURRENT_DATE + INTERVAL '1 day'
+              AND oi.ledger_status IN ('active', 'refunded')
         ),
         yesterday_metrics AS (
             SELECT
-                COUNT(DISTINCT o.id) as orders,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue
-            FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.created_at::DATE = CURRENT_DATE - 1
+                count(*) FILTER (WHERE kind = 'sale') as orders,
+                COALESCE(SUM(price_total), 0) as revenue
+            FROM orders
+            WHERE created_at >= CURRENT_DATE - INTERVAL '1 day'
+              AND created_at < CURRENT_DATE
         ),
         shift_metrics AS (
             SELECT
-                o.shift,
-                COUNT(DISTINCT o.id) as orders,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue,
-                COALESCE(SUM(oi.quantity), 0) as items
-            FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            WHERE o.created_at::DATE = CURRENT_DATE
-            GROUP BY o.shift
+                shift,
+                count(*) FILTER (WHERE kind = 'sale') as orders,
+                COALESCE(SUM(price_total), 0) as revenue
+            FROM orders
+            WHERE created_at >= CURRENT_DATE
+  AND created_at < CURRENT_DATE + INTERVAL '1 day'
+            GROUP BY shift
         ),
         category_metrics AS (
             SELECT
-                c.name as category,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue,
+                c.name as item_category,
+                COALESCE(SUM(oi.price_total), 0) as revenue,
                 COALESCE(SUM(oi.quantity), 0) as units
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
-            JOIN items i ON oi.item_id = i.id
-            LEFT JOIN categories c ON i.category_id = c.id
-            WHERE o.created_at::DATE = CURRENT_DATE
+            -- Routing through the variation as per our schema fix
+            JOIN item_variations iv ON oi.item_variation_id = iv.id
+            JOIN items i ON iv.item_id = i.id
+            LEFT JOIN item_categories c ON i.category_id = c.id
+            WHERE o.created_at >= CURRENT_DATE
+              AND o.created_at < CURRENT_DATE + INTERVAL '1 day'
+              AND oi.ledger_status IN ('active', 'refunded')
             GROUP BY c.name
         )
         SELECT
-            (SELECT row_to_json(t) FROM today_metrics t) as today,
+            (SELECT row_to_json(t) FROM (
+                SELECT m.orders, m.revenue, i.items_sold
+                FROM today_metrics m CROSS JOIN today_items i
+            ) t) as today,
             (SELECT row_to_json(y) FROM yesterday_metrics y) as yesterday,
             (SELECT json_agg(s) FROM shift_metrics s) as shifts,
             (SELECT json_agg(c) FROM category_metrics c) as categories
+            -- Fixed the typo in the original alias: item_category_metrics -> category_metrics
     `;
 
 	// ==========================================
@@ -61,48 +77,53 @@ export const load: PageServerLoad = async ({ parent }) => {
 	const monthlyPromise = sql`
         WITH month_metrics AS (
             SELECT
-                COUNT(DISTINCT o.id) as orders,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue,
-                MAX(o.created_at) as last_sale_date
-            FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            WHERE date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE)
+                count(*) FILTER (WHERE kind = 'sale') as orders,
+                COALESCE(SUM(price_total), 0) as revenue,
+                MAX(created_at) as last_sale_date
+            FROM orders
+            WHERE created_at >= date_trunc('month', CURRENT_DATE)
+  AND created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
         ),
         daily_trend AS (
             SELECT
-                o.created_at::DATE as date,
-                COALESCE(SUM(oi.price_base * oi.quantity), 0) as revenue,
-                COUNT(DISTINCT o.id) as orders
-            FROM orders o
-            JOIN order_items oi ON o.id = oi.order_id
-            WHERE date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE)
-            GROUP BY o.created_at::DATE
-            ORDER BY o.created_at::DATE ASC
+                created_at::DATE as date,
+                COALESCE(SUM(price_total), 0) as revenue,
+                count(*) FILTER (WHERE kind = 'sale') as orders
+            FROM orders
+            WHERE created_at >= date_trunc('month', CURRENT_DATE)
+  AND created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+            GROUP BY created_at::DATE
+            ORDER BY created_at::DATE ASC
         ),
         weekday_pattern AS (
             SELECT
-                TRIM(to_char(sale_date, 'Day')) as day_name,
+                to_char(sale_date, 'FMDay') as day_name,
                 EXTRACT(ISODOW FROM sale_date) as day_index, -- 1=Mon, 7=Sun
                 AVG(daily_rev) as avg_revenue
             FROM (
-                SELECT o.created_at::DATE as sale_date, SUM(oi.price_base * oi.quantity) as daily_rev
-                FROM orders o JOIN order_items oi ON o.id = oi.order_id
-                WHERE date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE)
-                GROUP BY o.created_at::DATE
+                SELECT created_at::DATE as sale_date, SUM(price_total) as daily_rev
+                FROM orders
+                WHERE created_at >= date_trunc('month', CURRENT_DATE)
+                  AND created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+                GROUP BY created_at::DATE
             ) daily_data
             GROUP BY day_name, day_index
             ORDER BY day_index
         ),
         item_performance AS (
             SELECT
-                i.name,
+                iv.name as variation_name,
+                i.name as parent_item_name,
                 SUM(oi.quantity) as units_sold,
-                SUM(oi.price_base * oi.quantity) as revenue
+                SUM(oi.price_total) as revenue
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
-            JOIN items i ON oi.item_id = i.id
-            WHERE date_trunc('month', o.created_at) = date_trunc('month', CURRENT_DATE)
-            GROUP BY i.name
+            JOIN item_variations iv ON oi.item_variation_id = iv.id
+            JOIN items i ON iv.item_id = i.id
+            WHERE o.created_at >= date_trunc('month', CURRENT_DATE)
+              AND o.created_at < date_trunc('month', CURRENT_DATE) + INTERVAL '1 month'
+              AND oi.ledger_status IN ('active', 'refunded')
+            GROUP BY iv.id, iv.name, i.name
             ORDER BY revenue DESC
             LIMIT 10
         )
@@ -129,7 +150,7 @@ export const load: PageServerLoad = async ({ parent }) => {
 			categories: dailyData.categories || [],
 		},
 		monthly: {
-			stats: monthlyData.summary || { orders: 0, revenue: 0 },
+			stats: monthlyData.summary || { orders: 0, revenue: 0, last_sale_date: null },
 			trend: monthlyData.trend || [],
 			heatmap: monthlyData.heatmap || [],
 			items: monthlyData.items || [],

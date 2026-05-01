@@ -24,50 +24,59 @@
 	}
 </script>
 
-<button
-	class="group flex w-full flex-col gap-1 rounded-xl text-left focus:outline-none"
-	onclick={toggle}
-	disabled={!hasDesc}
->
-	<div
-		class={`flex w-full items-end-safe justify-between ${
-			hasDesc ? "cursor-pointer" : "cursor-default"
-		}`}
-	>
-		<div class="flex items-center gap-1.5">
-			<span
-				class={`text-base font-bold tracking-tight transition-colors ${
-					isOpen ? "text-primary" : "group-hover:text-primary"
-				}`}
-			>
-				{item.name}
-			</span>
-
-			{#if hasDesc}
-				<ChevronDown
-					class={`text-muted-foreground/50 h-3.5 w-3.5 transition-all duration-200 ${
-						isOpen ? "text-primary -rotate-180" : "group-hover:text-foreground"
-					}`}
-				/>
-			{/if}
-		</div>
-
+{#snippet headerContent()}
+	<div class="flex min-w-0 flex-1 items-center gap-2">
 		<span
-			class={`bg-secondary/80 min-w-12 shrink-0 rounded px-2 py-1 text-center text-sm font-bold transition-colors ${
-				isOpen ? "text-primary" : "group-hover:text-primary"
-			}`}
+			class="truncate text-base font-bold tracking-tight transition-colors {isOpen
+				? 'text-primary'
+				: 'group-hover:text-primary'}"
+			title={item.name}
 		>
-			{formattedPrice}
+			{item.name}
 		</span>
+
+		{#if hasDesc}
+			<ChevronDown
+				class="h-4 w-4 shrink-0 transition-transform duration-200 {isOpen
+					? 'text-primary -rotate-180'
+					: 'text-muted-foreground/50 group-hover:text-foreground'}"
+			/>
+		{/if}
 	</div>
 
-	{#if isOpen && hasDesc}
-		<div transition:slide={{ duration: 200, axis: "y" }}>
-			<p class="text-muted-foreground px-2 pt-2 text-xs leading-relaxed opacity-80">
-				{item.description}
-			</p>
+	<span
+		class="bg-secondary min-w-12 shrink-0 rounded px-2 py-1 text-center text-sm font-bold transition-colors {isOpen
+			? 'text-primary'
+			: 'group-hover:text-primary'}"
+	>
+		{formattedPrice}
+	</span>
+{/snippet}
+
+<div class="group flex w-full flex-col text-left">
+	{#if hasDesc}
+		<button
+			type="button"
+			onclick={toggle}
+			aria-expanded={isOpen}
+			class="flex w-full cursor-pointer items-center justify-between gap-4 focus:outline-none"
+		>
+			{@render headerContent()}
+		</button>
+	{:else}
+		<div class="flex w-full cursor-default items-center justify-between gap-4">
+			{@render headerContent()}
 		</div>
 	{/if}
 
+	{#if isOpen && hasDesc}
+		<p
+			transition:slide={{ duration: 200, axis: "y" }}
+			class="text-muted-foreground w-full px-2 pt-2 text-xs leading-relaxed opacity-80"
+		>
+			{item.description}
+		</p>
+	{/if}
+
 	<div class="border-border/40 mt-2 w-full border-b border-dashed last:hidden"></div>
-</button>
+</div>

@@ -3,6 +3,7 @@
 	import type { Snippet } from "svelte";
 	import { Button } from "$lib/components/ui/button";
 	import * as Sidebar from "$lib/components/ui/sidebar";
+	import type { LayoutData } from "./$types";
 	import {
 		LayoutDashboard,
 		Coffee,
@@ -19,7 +20,7 @@
 		data,
 		children,
 	}: {
-		data: { user?: { name: string; role: string } };
+		data: LayoutData;
 		children: Snippet;
 	} = $props();
 
@@ -65,10 +66,9 @@
 	<Sidebar.Root class="border-r">
 		<Sidebar.Header class="flex h-14 items-center justify-center border-b px-4">
 			<div class="flex w-full items-center gap-3">
-				<div
-					class="bg-primary text-primary-foreground flex items-center justify-center rounded-md p-1.5 shadow-sm"
-				>
-					<Coffee class="h-5 w-5" />
+				<div class="flex items-center justify-center">
+					<!-- <Coffee class="h-5 w-5" /> -->
+					<img src="/donn-robot.svg" class="h-8 w-8" alt="Begin Again Alt Logo" />
 				</div>
 				<h1 class="truncate text-lg font-black tracking-widest uppercase">Begin Again</h1>
 			</div>
@@ -118,7 +118,7 @@
 				</div>
 				<div class="flex flex-col overflow-hidden">
 					<span class="truncate text-sm leading-none font-bold">
-						{data.user?.name || "Admin User"}
+						{data.user?.username || "Admin User"}
 					</span>
 					<span
 						class="text-muted-foreground mt-1 truncate text-[10px] font-bold tracking-wider uppercase"
@@ -132,7 +132,7 @@
 				<Button
 					variant="outline"
 					class="w-full text-xs font-bold tracking-wider uppercase"
-					href="/register"
+					href="/kiosk"
 				>
 					<Calculator class="mr-2 h-4 w-4" /> POS Terminal
 				</Button>
@@ -193,7 +193,7 @@
 						class="bg-primary/10 flex h-8 w-8 items-center justify-center rounded-full"
 					>
 						<span class="text-primary font-mono text-xs font-bold uppercase">
-							{(data.user?.name || "A").charAt(0)}
+							{(data.user?.username || "A").charAt(0)}
 						</span>
 					</div>
 				</div>

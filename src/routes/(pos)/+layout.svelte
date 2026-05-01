@@ -14,7 +14,6 @@
 	} from "@lucide/svelte";
 	import type { LayoutData } from "./$types"; // if this file is +layout.svelte
 
-	// Assuming your +layout.server.ts passes down the session user.
 	let {
 		data,
 		children,
@@ -50,7 +49,7 @@
 
 	// POS Navigation Routes
 	const navItems = [
-		{ title: "Register", href: "/register", icon: Calculator },
+		{ title: "kiosk", href: "/kiosk", icon: Calculator },
 		{ title: "Active Queue", href: "/queue", icon: ListOrdered },
 		{ title: "Transactions", href: "/transactions", icon: Receipt },
 	];
@@ -60,10 +59,9 @@
 	<Sidebar.Root class="hidden border-r lg:flex">
 		<Sidebar.Header class="flex h-14 items-center justify-center border-b px-4">
 			<div class="flex w-full items-center gap-3">
-				<div
-					class="bg-primary text-primary-foreground flex items-center justify-center rounded-md p-1.5 shadow-sm"
-				>
-					<Coffee class="h-5 w-5" />
+				<div class="flex items-center justify-center">
+					<!-- <Coffee class="h-5 w-5" /> -->
+					<img src="/donn-robot.svg" class="h-8 w-8" alt="Begin Again Alt Logo" />
 				</div>
 				<h1 class="truncate text-lg font-black tracking-widest uppercase">Begin Again</h1>
 			</div>

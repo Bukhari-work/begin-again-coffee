@@ -40,7 +40,7 @@ export const load: PageServerLoad = async () => {
                             'ledger_status', oi.ledger_status, -- THE UPGRADE: Pass this to the UI
                             'modifiers', (
                                 SELECT COALESCE(json_agg(
-                                    json_build_object('name', m.name, 'qty', oim.quantity)
+                                    json_build_object('name', m.name, 'qty', oim.quantity_per_item)
                                 ), '[]'::json)
                                 FROM order_item_modifiers oim
                                 JOIN modifiers m ON m.id = oim.modifier_id
@@ -132,12 +132,12 @@ export const actions: Actions = {
 				// 2. Denormalization Sync
 				// This recalculates the parent order. If it's unpaid, the ticket gets cheaper!
 				await q`
-                      UPDATE orders o
-                      SET
-                          price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
-                          cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
-                      WHERE id = ${orderId}
-                  `;
+                UPDATE orders o
+                SET
+                    price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
+                    cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
+                WHERE id = ${orderId}
+                `;
 			});
 
 			return { success: true };
@@ -183,7 +183,12 @@ export const actions: Actions = {
 				const q = tx as unknown as typeof sql;
 
 				// 1. Check if the ticket has already been paid (or comped)
-				const [order] = await q`SELECT payment_method FROM orders WHERE id = ${orderId}`;
+				const [order] = await q`
+            SELECT payment_method
+            FROM orders
+            WHERE id = ${orderId}
+            FOR UPDATE
+        `;
 				if (!order) throw new Error("Order not found");
 
 				const isPaid = order.payment_method !== null;
@@ -242,11 +247,19 @@ export const actions: Actions = {
 		if (!orderId || !paymentMethod) return fail(400, { error: "Missing required fields" });
 
 		try {
-			await sql`
+			const [updatedOrder] = await sql`
                 UPDATE orders
                 SET payment_method = ${paymentMethod}
                 WHERE id = ${orderId}
+                RETURNING price_total
             `;
+
+			if (paymentMethod === "comped" && Number(updatedOrder.price_total) > 0) {
+				// Revert the transaction by throwing an error
+				await sql`UPDATE orders SET payment_method = NULL WHERE id = ${orderId}`;
+				return fail(400, { error: "Cannot comp an order with a positive balance." });
+			}
+
 			return { success: true };
 		} catch (error) {
 			console.error(error);

@@ -5,7 +5,7 @@
 --
 -- Data for Name: item_categories; Type: TABLE DATA; Schema: public
 --
-INSERT INTO public.item_categories (id, name) VALUES (1, 'Anteiku');
+INSERT INTO public.item_categories (id, name) VALUES (1, 'Anteiku (botolan)');
 INSERT INTO public.item_categories (id, name) VALUES (2, 'Senandung Prayana');
 INSERT INTO public.item_categories (id, name) VALUES (3, 'Labuh Asha');
 INSERT INTO public.item_categories (id, name) VALUES (4, 'Wacana Klasik');
@@ -41,7 +41,6 @@ INSERT INTO public.ingredients (id, name, unit, is_active, category, brand, type
 --
 -- Data for Name: items; Type: TABLE DATA; Schema: public
 --
-INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (15, 'Labuh Hitam', 15000, 3, 'Kopi hitam yang kompleks (Americano atau Long Black) dengan double shot espresso.', 10, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (1, 'Anteiku Aren', 20000, 1, 'Kopi susu botolan premium dengan manis legit gula aren asli.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (2, 'Anteiku Butterscotch', 20000, 1, 'Kopi susu botolan premium berpadu saus butterscotch yang gurih dan creamy.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (3, 'Anteiku Caramel', 20000, 1, 'Kopi susu botolan premium dengan sentuhan sirup karamel klasik.', 0, true, NULL);
@@ -49,12 +48,15 @@ INSERT INTO public.items (id, name, price, category_id, description, featured_ra
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (5, 'Anteiku Hazelnut', 20000, 1, 'Kopi susu botolan premium dengan aroma kacang hazelnut yang khas.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (6, 'Anteiku Popcorn', 20000, 1, 'Kopi susu botolan premium dengan rasa popcorn bioskop yang unik dan buttery.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (7, 'Anteiku Tiramisu', 20000, 1, 'Kopi susu botolan premium dengan nuansa dessert tiramisu yang lembut.', 0, true, NULL);
+INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (8, 'Senandung Aren', 10000, 2, 'Es kopi susu gula aren signatur kami! Manis, creamy, dan ramah di kantong.', 9, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (9, 'Senandung Butterscotch', 15000, 2, 'Es kopi susu creamy dengan sentuhan rasa butterscotch yang milky.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (10, 'Senandung Caramel', 15000, 2, 'Es kopi susu dengan tambahan sirup karamel manis dan harum.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (11, 'Senandung Creme Brulee', 15000, 2, 'Es kopi susu dengan flavor creme brulee yang lembut dan creamy.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (12, 'Senandung Hazelnut', 15000, 2, 'Es kopi susu favorit dengan aroma kacang hazelnut yang khas.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (13, 'Senandung Popcorn', 15000, 2, 'Es kopi susu dengan sentuhan rasa popcorn bioskop yang unik dan buttery.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (14, 'Senandung Tiramisu', 15000, 2, 'Es kopi susu dengan rasa kue tiramisu yang lembut dan creamy.', 0, true, NULL);
+INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (15, 'Labuh Hitam', 15000, 3, 'Kopi hitam yang kompleks (Americano atau Long Black) dengan double shot espresso.', 10, true, NULL);
+INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (16, 'Labuh Latte', 20000, 3, 'Kopi hitam dipadukan dengan susu (Latte atau Cappuccino) dengan double shot espresso.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (17, 'Japanese', 15000, 4, 'Kopi diseduh manual metode Japanese Iced Coffee dengan karakter fruity.', 5, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (18, 'V60', 15000, 4, 'Kopi diseduh manual metode pour-over untuk rasa yang bersih dan kompleks.', 5, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (19, 'Kopi Tubruk', 10000, 4, 'Kopi hitam tradisional Indonesia yang diseduh langsung tanpa saring.', 0, true, NULL);
@@ -62,8 +64,6 @@ INSERT INTO public.items (id, name, price, category_id, description, featured_ra
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (21, 'Chocolatte', 15000, 5, 'Minuman cokelat creamy favorit semua umur dengan rasa manis seimbang.', 8, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (22, 'Matcha Latte', 15000, 5, 'Teh hijau Jepang (matcha) berpadu susu segar yang creamy dan lembut.', 0, true, NULL);
 INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (23, 'Fresh Milk', 10000, 5, 'Susu sapi segar murni—simple, sehat, dan menyegarkan.', 0, true, NULL);
-INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (8, 'Senandung Aren', 10000, 2, 'Es kopi susu gula aren signatur kami! Manis, creamy, dan ramah di kantong.', 9, true, NULL);
-INSERT INTO public.items (id, name, price, category_id, description, featured_rank, is_available, image_url) VALUES (16, 'Labuh Latte', 20000, 3, 'Kopi hitam dipadukan dengan susu (Latte atau Cappuccino) dengan double shot espresso.', 0, true, NULL);
 
 --
 -- Data for Name: item_variations; Type: TABLE DATA; Schema: public
@@ -111,8 +111,8 @@ INSERT INTO public.modifier_group_rules (id, group_id, category_id, item_id) VAL
 --
 -- Data for Name: modifiers; Type: TABLE DATA; Schema: public
 --
--- Note: Changed 'DYNAMIC_BASE' to 'DYNAMIC', removed decimals from quantity.
-INSERT INTO public.modifiers (id, group_id, name, price_adjustment, ingredient_id, quantity, behavior, is_available, dependency_source) VALUES (5, 3, 'Extra Espresso Shot', 5000, NULL, 8, 'DYNAMIC', true, 2);
+-- Note: Changed 'DEPENDENT_BASE' to 'DEPENDENT', removed decimals from quantity.
+INSERT INTO public.modifiers (id, group_id, name, price_adjustment, ingredient_id, quantity, behavior, is_available, dependency_source) VALUES (5, 3, 'Extra Espresso Shot', 5000, NULL, 8, 'DEPENDENT', true, 3);
 INSERT INTO public.modifiers (id, group_id, name, price_adjustment, ingredient_id, quantity, behavior, is_available, dependency_source) VALUES (1, 1, 'Space - Flower Power', 0, 19, 15, 'STATIC', true, NULL);
 INSERT INTO public.modifiers (id, group_id, name, price_adjustment, ingredient_id, quantity, behavior, is_available, dependency_source) VALUES (4, 1, 'Space - 75 Arabica / 25 Robusta', 0, 19, 15, 'STATIC', true, NULL);
 INSERT INTO public.modifiers (id, group_id, name, price_adjustment, ingredient_id, quantity, behavior, is_available, dependency_source) VALUES (2, 2, 'Tones - Javanaise Quartet', 5000, 20, 15, 'STATIC', true, NULL);

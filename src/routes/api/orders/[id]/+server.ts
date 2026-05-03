@@ -31,7 +31,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		sql`
 			SELECT
 				oim.order_item_id,
-				oim.quantity,
+				oim.quantity_per_item,
 				oim.price_base,
 				m.name
 			FROM order_item_modifiers oim

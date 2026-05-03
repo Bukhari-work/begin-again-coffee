@@ -138,14 +138,15 @@ export const actions: Actions = {
 				const refundPriceTotal =
 					items.reduce((sum, item) => sum + Number(item.price_total), 0) * -1;
 
-				// 4. Create the negative counter-weight ticket.
+				// 4. Create the negative counter-weight ticket (LEAVE IT OPEN)
 				const [refundOrder] = await q`
                     INSERT INTO public.orders (
-                        parent_order_id, profile_id, kind, payment_method,
+                        parent_order_id, profile_id, kind,
                         price_total, cogs_total, shift, customer_name
+                        -- NOTE: payment_method is intentionally omitted here!
                     )
                     VALUES (
-                        ${orderId}, ${profileId}, 'refund', ${original.payment_method},
+                        ${orderId}, ${profileId}, 'refund',
                         ${refundPriceTotal}, 0, ${original.shift}, ${original.customer_name}
                     )
                     RETURNING id
@@ -169,7 +170,7 @@ export const actions: Actions = {
 
 					// Clone the modifiers to keep reporting perfectly balanced!
 					const modifiers = await q`
-                        SELECT modifier_id, quantity, price_base, resolved_ingredient_id
+                        SELECT modifier_id, quantity_per_item, price_base, resolved_ingredient_id
                         FROM public.order_item_modifiers
                         WHERE order_item_id = ${item.id}
                     `;
@@ -177,16 +178,23 @@ export const actions: Actions = {
 					for (const mod of modifiers) {
 						await q`
                             INSERT INTO public.order_item_modifiers (
-                                order_item_id, modifier_id, quantity, price_base, cogs_base, resolved_ingredient_id
+                                order_item_id, modifier_id, quantity_per_item, price_base, cogs_base, resolved_ingredient_id
                             )
                             VALUES (
-                                ${refundOrderItem.id}, ${mod.modifier_id}, ${-mod.quantity}, ${mod.price_base}, 0, ${mod.resolved_ingredient_id}
+                                ${refundOrderItem.id}, ${mod.modifier_id}, ${-mod.quantity_per_item}, ${mod.price_base}, 0, ${mod.resolved_ingredient_id}
                             )
                         `;
 					}
 				}
 
-				// 6. Kitchen Intercept
+				// 6. Seal the Refund Ticket!
+				await q`
+                    UPDATE public.orders
+                    SET payment_method = ${original.payment_method}
+                    WHERE id = ${refundOrder.id}
+                `;
+
+				// 7. Kitchen Intercept (Tell the kitchen to stop making the refunded items if they haven't served them yet)
 				await q`
                     UPDATE public.order_items
                     SET fulfillment_status = 'cancelled'::public.fulfillment_state
@@ -195,7 +203,6 @@ export const actions: Actions = {
                       AND fulfillment_status = 'preparing'
                 `;
 			});
-
 			return { success: true };
 		} catch (error) {
 			console.error("Partial Refund DB Error:", error);

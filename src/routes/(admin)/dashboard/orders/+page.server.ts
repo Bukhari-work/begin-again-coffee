@@ -16,7 +16,7 @@ export const load: PageServerLoad = async () => {
         modifier_totals AS (
             SELECT
                 oi.order_id,
-                SUM(oim.price_base * oim.quantity) as mod_total
+                SUM(oim.price_base * oim.quantity_per_item) as mod_total
             FROM order_item_modifiers oim
             JOIN order_items oi ON oim.order_item_id = oi.id
             GROUP BY oi.order_id

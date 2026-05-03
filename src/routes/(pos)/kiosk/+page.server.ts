@@ -232,7 +232,7 @@ export const load: PageServerLoad = async ({ url }) => {
                                         json_build_object(
                                             'id', m.id,
                                             'name', m.name,
-                                            'qty', oim.quantity,
+                                            'qty', oim.quantity_per_item,
                                             'price', oim.price_base
                                         )
                                     ),
@@ -337,7 +337,7 @@ export const actions: Actions = {
 				);
 
 				const baseCosts = await q`
-                    SELECT item_variation_id, COALESCE(SUM(amount * vic.cost_per_unit), 0) AS cost
+                    SELECT item_variation_id, COALESCE(SUM(r.amount * vic.cost_per_unit), 0) AS cost
                     FROM public.recipes r
                     LEFT JOIN public.view_ingredient_costs vic ON r.ingredient_id = vic.ingredient_id
                     WHERE item_variation_id = ANY(${variationIds})
@@ -408,7 +408,7 @@ export const actions: Actions = {
 
 					await q`
                         UPDATE public.orders
-                        SET customer_name = ${customerName}, payment_method = ${actualPaymentMethod}, shift = ${shift}
+                        SET customer_name = ${customerName}, shift = ${shift}
                         WHERE id = ${editOrderId}
                     `;
 					targetOrderId = editOrderId;
@@ -430,8 +430,8 @@ export const actions: Actions = {
 					}
 				} else {
 					const [newOrder] = await q`
-                        INSERT INTO public.orders (customer_name, payment_method, shift, profile_id)
-                        VALUES (${customerName}, ${actualPaymentMethod}, ${shift}, ${profileId})
+                        INSERT INTO public.orders (customer_name, shift, profile_id)
+                        VALUES (${customerName}, ${shift}, ${profileId})
                         RETURNING id
                     `;
 					targetOrderId = Number(newOrder.id);
@@ -509,7 +509,7 @@ export const actions: Actions = {
 
 						await q`
                    INSERT INTO public.order_item_modifiers
-                   (order_item_id, modifier_id, quantity, price_base, cogs_base, resolved_ingredient_id)
+                   (order_item_id, modifier_id, quantity_per_item, price_base, cogs_base, resolved_ingredient_id)
                    VALUES (${targetOrderItemId}, ${mod.id}, ${mod.qty}, ${modPrice}, ${modCogs}, ${resolvedIngredientId})
                   `;
 					}
@@ -518,6 +518,7 @@ export const actions: Actions = {
 				const [finalOrder] = await q`
                     UPDATE public.orders o
                     SET
+                        payment_method = ${actualPaymentMethod},
                         price_total = (
                             SELECT COALESCE(SUM(price_total), 0)
                             FROM public.order_items

@@ -537,13 +537,35 @@
 											)}
 
 											{#if displayItems.length > 0}
-												{displayItems
-													.map((i) => `${i.qty}x ${i.name}`)
-													.join(", ")}
+												<div class="flex flex-wrap gap-1">
+													{#each displayItems as i, index (i.id)}
+														<span
+															class={i.is_already_refunded
+																? "text-muted-foreground line-through"
+																: ""}
+														>
+															{i.qty}x {i.name}{index <
+															displayItems.length - 1
+																? ", "
+																: ""}
+														</span>
+													{/each}
+												</div>
 											{:else}
-												{order.items
-													.map((i) => `${i.qty}x ${i.name}`)
-													.join(", ")}
+												<div class="flex flex-wrap gap-1">
+													{#each order.items as i, index (i.id)}
+														<span
+															class={i.is_already_refunded
+																? "text-muted-foreground line-through"
+																: ""}
+														>
+															{i.qty}x {i.name}{index <
+															order.items.length - 1
+																? ", "
+																: ""}
+														</span>
+													{/each}
+												</div>
 											{/if}
 										{/if}
 									</div>

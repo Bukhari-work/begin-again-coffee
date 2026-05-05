@@ -1,11 +1,11 @@
 import type { Handle } from "@sveltejs/kit";
 import { createServerClient } from "@supabase/ssr";
-import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY } from "$env/static/public";
+import { env } from "$env/dynamic/private";
 import sql from "$lib/server/db";
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// 1. Initialize Supabase
-	event.locals.supabase = createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+	event.locals.supabase = createServerClient(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, {
 		global: {
 			fetch: event.fetch,
 		},

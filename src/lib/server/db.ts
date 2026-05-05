@@ -2,8 +2,8 @@ import postgres from "postgres";
 import { env } from "$env/dynamic/private";
 import { dev } from "$app/environment";
 
-if (!env.DATABASE_URL) {
-	throw new Error("DATABASE_URL environment variable is missing");
+if (!env.POSTGRES_URL) {
+	throw new Error("POSTGRES_URL environment variable is missing");
 }
 
 declare global {
@@ -12,7 +12,7 @@ declare global {
 
 const sql =
 	globalThis.__postgres ??
-	postgres(env.DATABASE_URL, {
+	postgres(env.POSTGRES_URL, {
 		max: dev ? 10 : 1,
 
 		// IMPORTANT: must be false in production for Supavisor

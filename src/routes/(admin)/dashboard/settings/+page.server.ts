@@ -1,8 +1,7 @@
 import sql from "$lib/server/db";
 import { fail } from "@sveltejs/kit";
 import { createClient } from "@supabase/supabase-js";
-import { PUBLIC_SUPABASE_URL } from "$env/static/public";
-import { SUPABASE_SERVICE_ROLE_KEY } from "$env/static/private"; // Make sure to add this to .env!
+import { env } from "$env/dynamic/private";
 import type { PageServerLoad, Actions } from "./$types";
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -34,7 +33,7 @@ export const actions: Actions = {
 		if (!email || !username || !password) return fail(400, { missing: true });
 
 		// Initialize the Admin Client using the Service Role Key
-		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 		// We only make ONE call. Supabase handles the rest.
 		const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
@@ -64,7 +63,7 @@ export const actions: Actions = {
 			return fail(400, { error: "Cannot delete yourself" });
 		}
 
-		const supabaseAdmin = createClient(PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+		const supabaseAdmin = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
 
 		// This is the magic of "ON DELETE CASCADE"!
 		// We delete the user from Supabase Auth, and Postgres automatically wipes

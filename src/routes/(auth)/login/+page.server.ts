@@ -34,6 +34,7 @@ export const actions: Actions = {
 				});
 
 			if (authError || !authData.user) {
+				console.error("Supabase Auth Error:", authError?.message);
 				return fail(400, { error: "Invalid credentials" });
 			}
 

@@ -39,22 +39,32 @@
 		</Button>
 	</header>
 
-	<main class="relative z-10 w-full max-w-sm space-y-6">
-		<div class="mb-8 flex flex-col items-center gap-4 text-center">
-			<img src="/favicon.svg" class="h-24 w-24 drop-shadow-sm" alt="Begin Again Logo" />
+	<main class="relative z-10 w-full max-w-sm px-4">
+		<div class="mb-8 flex flex-col items-center text-center">
+			<img
+				src="/donn-robot.svg"
+				class="h-24 w-24 drop-shadow-sm"
+				alt="Begin Again Alt Logo"
+			/>
 
 			<div>
-				<h1 class="text-2xl font-black tracking-tighter uppercase">Begin Again</h1>
-				<p class="text-muted-foreground font-mono text-sm tracking-widest uppercase">
+				<h1 class="text-xl font-black tracking-tighter uppercase md:text-2xl">
+					Begin Again
+				</h1>
+				<p
+					class="text-muted-foreground font-mono text-xs tracking-widest uppercase md:text-sm"
+				>
 					Terminal Kasir Kedai
 				</p>
 			</div>
 		</div>
 
 		<Card class="border-border border-2 shadow-lg">
-			<CardHeader class="space-y-1 pb-6 text-center">
-				<CardTitle class="text-xl font-bold">Welcome Back</CardTitle>
-				<CardDescription>Enter your credentials to access the terminal.</CardDescription>
+			<CardHeader class="text-center">
+				<CardTitle class="text-lg font-bold md:text-xl">Selamat Datang</CardTitle>
+				<CardDescription>
+					Masukkan kredensial Anda untuk mengakses terminal kasir.
+				</CardDescription>
 			</CardHeader>
 			<CardContent>
 				<form
@@ -67,7 +77,7 @@
 							await update();
 						};
 					}}
-					class="grid gap-5"
+					class="grid gap-4"
 				>
 					<div class="grid gap-2">
 						<Label
@@ -81,8 +91,8 @@
 							name="email"
 							type="email"
 							required
-							placeholder="cth. admin@beginagain.cv"
-							class="bg-background border-border h-11"
+							placeholder="cth. admin@beginagain.work"
+							class="bg-background border-border h-10 text-xs md:text-sm"
 							disabled={isSubmitting}
 						/>
 					</div>
@@ -99,7 +109,7 @@
 							name="password"
 							type="password"
 							required
-							class="bg-background border-border h-11"
+							class="bg-background border-border h-10 text-xs md:text-sm"
 							disabled={isSubmitting}
 						/>
 					</div>
@@ -115,13 +125,13 @@
 					<Button
 						type="submit"
 						size="lg"
-						class="mt-2 w-full font-bold tracking-wide uppercase"
+						class="w-full font-bold tracking-wide uppercase"
 						disabled={isSubmitting}
 					>
 						{#if isSubmitting}
 							<Loader class="mr-2 h-5 w-5 animate-spin" /> Authenticating...
 						{:else}
-							Sign in
+							Masuk
 						{/if}
 					</Button>
 				</form>
@@ -131,8 +141,8 @@
 		<footer
 			class="text-muted-foreground mt-8 flex flex-col items-center gap-2 text-center font-mono tracking-widest uppercase"
 		>
-			<p class="text-xs">Authorized Personnel Only</p>
-			<div class="text-[8px] opacity-75">
+			<p class="text-xs">Website Kedai Kopi</p>
+			<div class="text-[8px]">
 				<p>Est. 2025 • Asli Amuntai</p>
 				<p>© Begin Again Coffee.</p>
 			</div>

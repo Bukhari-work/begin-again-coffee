@@ -22,7 +22,7 @@ declare global {
 const sql =
 	globalThis.__postgres ??
 	postgres(connectionString, {
-		max: dev ? 10 : 1,
+		max: 1,
 
 		// IMPORTANT: must be false in production for Supavisor
 		prepare: dev,

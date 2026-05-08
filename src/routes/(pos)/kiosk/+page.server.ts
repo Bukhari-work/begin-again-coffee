@@ -151,7 +151,11 @@ export const load: PageServerLoad = async ({ url }) => {
 	const editIdRaw = url.searchParams.get("edit");
 	const editId = editIdRaw ? Number(editIdRaw) : null;
 
-	const itemsPromise = sql`
+	// ==========================================
+	// ITEMS
+	// ==========================================
+
+	const items = await sql`
         SELECT
             i.id,
             i.name,
@@ -170,13 +174,19 @@ export const load: PageServerLoad = async ({ url }) => {
             ) AS variations
         FROM public.items i
         LEFT JOIN public.item_categories c ON i.category_id = c.id
-        LEFT JOIN public.item_variations iv ON i.id = iv.item_id AND iv.is_available = true
+        LEFT JOIN public.item_variations iv
+            ON i.id = iv.item_id
+           AND iv.is_available = true
         WHERE i.is_available = true
         GROUP BY i.id, i.name, i.description, i.image_url, c.id, c.name
         ORDER BY c.id ASC, i.name ASC
     `;
 
-	const modifierGroupsPromise = sql`
+	// ==========================================
+	// MODIFIER GROUPS
+	// ==========================================
+
+	const modifierGroups = await sql`
         SELECT DISTINCT
             mg.id,
             mg.name,
@@ -185,11 +195,16 @@ export const load: PageServerLoad = async ({ url }) => {
             mgr.item_id,
             mgr.category_id
         FROM public.modifier_groups mg
-        JOIN public.modifier_group_rules mgr ON mg.id = mgr.group_id
+        JOIN public.modifier_group_rules mgr
+            ON mg.id = mgr.group_id
         ORDER BY mg.name ASC
     `;
 
-	const modifiersPromise = sql`
+	// ==========================================
+	// MODIFIERS
+	// ==========================================
+
+	const modifiers = await sql`
         SELECT
             m.id,
             m.group_id,
@@ -201,11 +216,20 @@ export const load: PageServerLoad = async ({ url }) => {
             m.quantity
         FROM public.modifiers m
         WHERE m.is_available = true
-        ORDER BY m.group_id ASC, m.price_adjustment ASC, m.name ASC
+        ORDER BY
+            m.group_id ASC,
+            m.price_adjustment ASC,
+            m.name ASC
     `;
 
-	const editOrderPromise = editId
-		? sql`
+	// ==========================================
+	// EDIT ORDER
+	// ==========================================
+
+	let editOrderRows: EditOrderRow[] = [];
+
+	if (editId) {
+		editOrderRows = await sql`
             SELECT
                 o.id,
                 o.customer_name,
@@ -239,7 +263,8 @@ export const load: PageServerLoad = async ({ url }) => {
                                     '[]'::json
                                 )
                                 FROM public.order_item_modifiers oim
-                                JOIN public.modifiers m ON m.id = oim.modifier_id
+                                JOIN public.modifiers m
+                                    ON m.id = oim.modifier_id
                                 WHERE oim.order_item_id = oi.id
                             )
                         )
@@ -251,25 +276,25 @@ export const load: PageServerLoad = async ({ url }) => {
                     '[]'::json
                 ) AS cart
             FROM public.orders o
-            LEFT JOIN public.order_items oi ON o.id = oi.order_id
-            LEFT JOIN public.item_variations iv ON oi.item_variation_id = iv.id
-            LEFT JOIN public.items i ON iv.item_id = i.id
+            LEFT JOIN public.order_items oi
+                ON o.id = oi.order_id
+            LEFT JOIN public.item_variations iv
+                ON oi.item_variation_id = iv.id
+            LEFT JOIN public.items i
+                ON iv.item_id = i.id
             WHERE o.id = ${editId}
             GROUP BY o.id
-        `
-		: Promise.resolve([]);
+        `;
+	}
 
-	const [items, modifierGroups, modifiers, editOrderRows] = await Promise.all([
-		itemsPromise,
-		modifierGroupsPromise,
-		modifiersPromise,
-		editOrderPromise,
-	]);
+	// ==========================================
+	// EDIT ORDER PROCESSING
+	// ==========================================
 
 	let editOrderData = null;
 
 	if (editId) {
-		const [order] = editOrderRows as EditOrderRow[];
+		const [order] = editOrderRows;
 
 		if (order) {
 			const hasServedItems = order.cart.some((item) => item.fulfillment_status === "served");
@@ -280,7 +305,12 @@ export const load: PageServerLoad = async ({ url }) => {
 		}
 	}
 
-	return { items, modifierGroups, modifiers, editOrderData };
+	return {
+		items,
+		modifierGroups,
+		modifiers,
+		editOrderData,
+	};
 };
 
 // ==========================================

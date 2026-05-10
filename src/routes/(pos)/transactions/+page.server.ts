@@ -30,41 +30,69 @@ type OrderItemRow = {
 export const load: PageServerLoad = async () => {
 	// 1. Fetch Today's Transactions
 	const todayOrders = await sql`
-        SELECT
-            o.id,
-            o.customer_name,
-            o.payment_method,
-            o.created_at,
-            o.price_total,
-            o.shift,
-            o.kind,
-            o.parent_order_id,
-            COALESCE(
+        WITH TodayOrders AS (
+            SELECT
+                id,
+                customer_name,
+                payment_method,
+                created_at,
+                price_total,
+                shift,
+                kind,
+                parent_order_id
+            FROM public.orders
+            WHERE created_at >= CURRENT_DATE
+              AND created_at < CURRENT_DATE + INTERVAL '1 day'
+        ),
+
+        ItemLookup AS (
+            SELECT
+                iv.id AS variation_id,
+                i.name || ' (' || iv.name || ')' AS display_name
+            FROM public.item_variations iv
+            JOIN public.items i
+                ON i.id = iv.item_id
+        ),
+
+        OrderItemsAgg AS (
+            SELECT
+                oi.order_id,
+
                 json_agg(
                     json_build_object(
                         'id', oi.id,
-                        'name', i.name || ' (' || iv.name || ')',
+                        'name', COALESCE(il.display_name, 'Custom Item'),
                         'qty', oi.quantity,
                         'price_total', oi.price_total,
                         'ledger_status', oi.ledger_status,
                         'fulfillment_status', oi.fulfillment_status,
                         'original_order_item_id', oi.original_order_item_id
                     )
-                ) FILTER (WHERE oi.id IS NOT NULL), '[]'::json
-            ) as items
-        FROM public.orders o
-        LEFT JOIN public.order_items oi ON o.id = oi.order_id
-        LEFT JOIN public.item_variations iv ON oi.item_variation_id = iv.id
-        LEFT JOIN public.items i ON iv.item_id = i.id
-        WHERE o.created_at >= CURRENT_DATE
-          AND o.created_at < CURRENT_DATE + INTERVAL '1 day'
-        GROUP BY o.id
-        ORDER BY o.created_at DESC
+                    ORDER BY oi.id ASC
+                ) AS items
+
+            FROM public.order_items oi
+
+            JOIN TodayOrders t
+                ON t.id = oi.order_id
+
+            LEFT JOIN ItemLookup il
+                ON il.variation_id = oi.item_variation_id
+
+            GROUP BY oi.order_id
+        )
+
+        SELECT
+            t.*,
+            COALESCE(oa.items, '[]'::json) AS items
+        FROM TodayOrders t
+        LEFT JOIN OrderItemsAgg oa
+            ON oa.order_id = t.id
+        ORDER BY t.created_at DESC;
     `;
 
 	return { todayOrders };
 };
-
 // ==========================================
 // ACTIONS
 // ==========================================

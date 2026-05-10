@@ -44,15 +44,6 @@ type ParsedCartItem = {
 	modifiers?: CartModifierInput[];
 };
 
-// 🛡️ Added for strict typing of the loaded edit order
-type EditOrderRow = {
-	id: number;
-	customer_name: string | null;
-	payment_method: string | null;
-	shift: string;
-	cart: Array<{ fulfillment_status?: string }>;
-};
-
 // ==========================================
 // CORE HELPER — COGS & INGREDIENT RESOLUTION
 // ==========================================
@@ -151,165 +142,137 @@ export const load: PageServerLoad = async ({ url }) => {
 	const editIdRaw = url.searchParams.get("edit");
 	const editId = editIdRaw ? Number(editIdRaw) : null;
 
-	// ==========================================
-	// ITEMS
-	// ==========================================
-
-	const items = await sql`
-        SELECT
-            i.id,
-            i.name,
-            i.category_id,
-            i.description,
-            c.name AS category_name,
-            i.image_url,
-            COALESCE(
-                json_agg(
-                    json_build_object(
-                        'id', iv.id,
-                        'name', iv.name,
-                        'price', iv.price
-                    ) ORDER BY iv.id ASC
-                ) FILTER (WHERE iv.id IS NOT NULL), '[]'::json
-            ) AS variations
-        FROM public.items i
-        LEFT JOIN public.item_categories c ON i.category_id = c.id
-        LEFT JOIN public.item_variations iv
-            ON i.id = iv.item_id
-           AND iv.is_available = true
-        WHERE i.is_available = true
-        GROUP BY i.id, i.name, i.description, i.image_url, c.id, c.name
-        ORDER BY c.id ASC, i.name ASC
-    `;
-
-	// ==========================================
-	// MODIFIER GROUPS
-	// ==========================================
-
-	const modifierGroups = await sql`
-        SELECT DISTINCT
-            mg.id,
-            mg.name,
-            mg.min_selections,
-            mg.max_selections,
-            mgr.item_id,
-            mgr.category_id
-        FROM public.modifier_groups mg
-        JOIN public.modifier_group_rules mgr
-            ON mg.id = mgr.group_id
-        ORDER BY mg.name ASC
-    `;
-
-	// ==========================================
-	// MODIFIERS
-	// ==========================================
-
-	const modifiers = await sql`
-        SELECT
-            m.id,
-            m.group_id,
-            m.name,
-            m.price_adjustment,
-            m.ingredient_id,
-            m.behavior,
-            m.dependency_source,
-            m.quantity
-        FROM public.modifiers m
-        WHERE m.is_available = true
-        ORDER BY
-            m.group_id ASC,
-            m.price_adjustment ASC,
-            m.name ASC
-    `;
+	// No edit mode
+	if (!editId) {
+		return {
+			editOrderData: null,
+		};
+	}
 
 	// ==========================================
 	// EDIT ORDER
 	// ==========================================
 
-	let editOrderRows: EditOrderRow[] = [];
-
-	if (editId) {
-		editOrderRows = await sql`
+	const editOrderRows = await sql`
+        WITH ItemModifiers AS (
             SELECT
-                o.id,
-                o.customer_name,
-                o.payment_method,
-                o.shift,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'cart_item_id', oi.id::text,
-                            'db_item_id', oi.id,
-                            'id', iv.id,
-                            'parent_item_id', i.id,
-                            'name', i.name || ' (' || iv.name || ')',
-                            'category', 'Loaded Item',
-                            'base_price', oi.price_base,
-                            'price', oi.price_total / NULLIF(oi.quantity, 0),
-                            'qty', oi.quantity,
-                            'is_freebie', (oi.ledger_status = 'voided'),
-                            'ledger_status', oi.ledger_status,
-                            'fulfillment_status', oi.fulfillment_status,
-                            'modifiers', (
-                                SELECT COALESCE(
-                                    json_agg(
-                                        json_build_object(
-                                            'id', m.id,
-                                            'name', m.name,
-                                            'qty', oim.quantity_per_item,
-                                            'price', oim.price_base
-                                        )
-                                    ),
-                                    '[]'::json
-                                )
-                                FROM public.order_item_modifiers oim
-                                JOIN public.modifiers m
-                                    ON m.id = oim.modifier_id
-                                WHERE oim.order_item_id = oi.id
-                            )
-                        )
-                    ) FILTER (
-                        WHERE oi.id IS NOT NULL
-                          AND oi.ledger_status IN ('active', 'voided')
-                          AND oi.fulfillment_status != 'cancelled'
-                    ),
-                    '[]'::json
-                ) AS cart
-            FROM public.orders o
-            LEFT JOIN public.order_items oi
-                ON o.id = oi.order_id
-            LEFT JOIN public.item_variations iv
-                ON oi.item_variation_id = iv.id
-            LEFT JOIN public.items i
-                ON iv.item_id = i.id
-            WHERE o.id = ${editId}
-            GROUP BY o.id
-        `;
+                oim.order_item_id,
+
+                json_agg(
+                    json_build_object(
+                        'id', m.id,
+                        'name', m.name,
+                        'qty', oim.quantity_per_item,
+                        'price', oim.price_base
+                    )
+                    ORDER BY m.name ASC
+                ) AS modifiers
+
+            FROM public.order_item_modifiers oim
+
+            JOIN public.modifiers m
+                ON m.id = oim.modifier_id
+
+            GROUP BY oim.order_item_id
+        )
+
+        SELECT
+            o.id,
+            o.customer_name,
+            o.payment_method,
+            o.shift,
+
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'cart_item_id', oi.id::text,
+                        'db_item_id', oi.id,
+
+                        'id', iv.id,
+                        'parent_item_id', i.id,
+
+                        'name', i.name || ' (' || iv.name || ')',
+
+                        'category', 'Loaded Item',
+
+                        'base_price', oi.price_base,
+
+                        'price',
+                            CASE
+                                WHEN oi.quantity = 0 THEN 0
+                                ELSE oi.price_total / oi.quantity
+                            END,
+
+                        'qty', oi.quantity,
+
+                        'is_freebie',
+                            (oi.ledger_status = 'voided'),
+
+                        'ledger_status', oi.ledger_status,
+                        'fulfillment_status', oi.fulfillment_status,
+
+                        'modifiers',
+                            COALESCE(im.modifiers, '[]'::json)
+                    )
+
+                    ORDER BY oi.id ASC
+
+                ) FILTER (
+                    WHERE oi.id IS NOT NULL
+                      AND oi.ledger_status IN ('active', 'voided')
+                      AND oi.fulfillment_status != 'cancelled'
+                ),
+
+                '[]'::json
+
+            ) AS cart
+
+        FROM public.orders o
+
+        LEFT JOIN public.order_items oi
+            ON oi.order_id = o.id
+
+        LEFT JOIN public.item_variations iv
+            ON iv.id = oi.item_variation_id
+
+        LEFT JOIN public.items i
+            ON i.id = iv.item_id
+
+        LEFT JOIN ItemModifiers im
+            ON im.order_item_id = oi.id
+
+        WHERE o.id = ${editId}
+
+        GROUP BY
+            o.id,
+            o.customer_name,
+            o.payment_method,
+            o.shift;
+    `;
+
+	const [order] = editOrderRows;
+
+	if (!order) {
+		return {
+			editOrderData: null,
+		};
 	}
 
-	// ==========================================
-	// EDIT ORDER PROCESSING
-	// ==========================================
+	// Kitchen lock:
+	// if ANY item already served,
+	// the ticket becomes immutable
+	const hasServedItems = order.cart.some(
+		(item: { fulfillment_status?: string }) => item.fulfillment_status === "served"
+	);
 
-	let editOrderData = null;
-
-	if (editId) {
-		const [order] = editOrderRows;
-
-		if (order) {
-			const hasServedItems = order.cart.some((item) => item.fulfillment_status === "served");
-
-			if (!hasServedItems) {
-				editOrderData = order;
-			}
-		}
+	if (hasServedItems) {
+		return {
+			editOrderData: null,
+		};
 	}
 
 	return {
-		items,
-		modifierGroups,
-		modifiers,
-		editOrderData,
+		editOrderData: order,
 	};
 };
 

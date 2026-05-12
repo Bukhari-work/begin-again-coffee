@@ -46,7 +46,7 @@ export const load: PageServerLoad = async () => {
             GROUP BY oim.order_item_id
         ),
 
-        TicketStatus AS (
+        QueueTickets AS (
             -- 3. Build queue tickets
             SELECT
                 ts.id,
@@ -115,7 +115,7 @@ export const load: PageServerLoad = async () => {
 
         -- 4. Final queue filter
         SELECT *
-        FROM TicketStatus
+        FROM QueueTickets
         WHERE derived_status = 'preparing'
            OR (
                 derived_status = 'served'
@@ -129,6 +129,7 @@ export const load: PageServerLoad = async () => {
 		activeOrders,
 	};
 };
+
 export const actions: Actions = {
 	// Action 1: The barista finishes making ONE specific drink
 	markItemServed: async ({ request }) => {
@@ -165,8 +166,8 @@ export const actions: Actions = {
 			await sql.begin(async (tx) => {
 				const q = tx as unknown as typeof sql;
 
-				// 1. Matrix Check: Is the parent ticket paid?
-				const [order] = await q`SELECT payment_method FROM orders WHERE id = ${orderId}`;
+				const [order] =
+					await q`SELECT payment_method FROM orders WHERE id = ${orderId} FOR UPDATE`;
 				if (!order) throw new Error("Order not found");
 
 				const isPaid = order.payment_method !== null;
@@ -187,17 +188,16 @@ export const actions: Actions = {
                               fulfillment_status = 'cancelled'::public.fulfillment_state
                           WHERE id = ${itemId}
                       `;
-				}
 
-				// 2. Denormalization Sync
-				// This recalculates the parent order. If it's unpaid, the ticket gets cheaper!
-				await q`
+					// Denormalization Sync (ONLY safe to do if the ticket is unpaid)
+					await q`
                 UPDATE orders o
                 SET
                     price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
                     cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
                 WHERE id = ${orderId}
                 `;
+				}
 			});
 
 			return { success: true };
@@ -278,16 +278,16 @@ export const actions: Actions = {
                             END
                         WHERE order_id = ${orderId}
                     `;
-				}
 
-				// 2. Denormalization Sync (The Split-Matrix Method)
-				await q`
-                    UPDATE orders o
-                    SET
-                        price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
-                        cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
-                    WHERE id = ${orderId}
+					// 2. Denormalization Sync (The Split-Matrix Method)
+					await q`
+                        UPDATE orders o
+                        SET
+                            price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
+                            cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
+                        WHERE id = ${orderId}
                 `;
+				}
 			});
 
 			return { success: true };
@@ -307,18 +307,21 @@ export const actions: Actions = {
 		if (!orderId || !paymentMethod) return fail(400, { error: "Missing required fields" });
 
 		try {
-			const [updatedOrder] = await sql`
-                UPDATE orders
-                SET payment_method = ${paymentMethod}
-                WHERE id = ${orderId}
-                RETURNING price_total
-            `;
-
-			if (paymentMethod === "comped" && Number(updatedOrder.price_total) > 0) {
-				// Revert the transaction by throwing an error
-				await sql`UPDATE orders SET payment_method = NULL WHERE id = ${orderId}`;
-				return fail(400, { error: "Cannot comp an order with a positive balance." });
-			}
+			// Use a transaction so we never end up with orphaned comped states
+			await sql.begin(async (tx) => {
+				const q = tx as unknown as typeof sql;
+				if (paymentMethod === "comped") {
+					const [order] = await q`SELECT price_total FROM orders WHERE id = ${orderId}`;
+					if (Number(order.price_total) > 0) {
+						throw new Error("Cannot comp an order with a positive balance.");
+					}
+				}
+				await q`
+                    UPDATE orders
+                    SET payment_method = ${paymentMethod}
+                    WHERE id = ${orderId}
+                `;
+			});
 
 			return { success: true };
 		} catch (error) {

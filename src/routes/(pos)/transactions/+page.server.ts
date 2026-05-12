@@ -2,10 +2,6 @@ import sql from "$lib/server/db";
 import { fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
 
-// ==========================================
-// 🧠 DOMAIN TYPES
-// ==========================================
-
 type OrderRow = {
 	id: number;
 	customer_name: string | null;
@@ -21,11 +17,8 @@ type OrderItemRow = {
 	cogs_base: number;
 	price_total: number;
 	cogs_total: number;
+	fulfillment_status: "preparing" | "served" | "cancelled";
 };
-
-// ==========================================
-// LOAD
-// ==========================================
 
 export const load: PageServerLoad = async () => {
 	// 1. Fetch Today's Transactions
@@ -72,13 +65,10 @@ export const load: PageServerLoad = async () => {
                 ) AS items
 
             FROM public.order_items oi
-
             JOIN TodayOrders t
                 ON t.id = oi.order_id
-
             LEFT JOIN ItemLookup il
                 ON il.variation_id = oi.item_variation_id
-
             GROUP BY oi.order_id
         )
 
@@ -93,9 +83,6 @@ export const load: PageServerLoad = async () => {
 
 	return { todayOrders };
 };
-// ==========================================
-// ACTIONS
-// ==========================================
 
 export const actions: Actions = {
 	partialRefund: async ({ request, locals }) => {
@@ -135,7 +122,7 @@ export const actions: Actions = {
 
 				// 2. Fetch + Validate Ownership + Lock Rows (FOR UPDATE)
 				const items = await q<OrderItemRow[]>`
-                    SELECT id, item_variation_id, quantity, price_base, cogs_base, price_total, cogs_total
+                    SELECT id, item_variation_id, quantity, price_base, cogs_base, price_total, cogs_total, fulfillment_status
                     FROM public.order_items
                     WHERE id = ANY(${itemIdsToRefund}) AND order_id = ${orderId}
                     FOR UPDATE
@@ -162,9 +149,18 @@ export const actions: Actions = {
 					);
 				}
 
-				// Calculate ONLY the negative revenue.
-				const refundPriceTotal =
-					items.reduce((sum, item) => sum + Number(item.price_total), 0) * -1;
+				// Calculate Revenue and Intelligent COGS
+				let refundPriceTotal = 0;
+				let refundCogsTotal = 0;
+
+				for (const item of items) {
+					refundPriceTotal += Number(item.price_total) * -1;
+
+					// THE UPGRADE: Only recoup COGS if the kitchen hasn't made it yet!
+					if (item.fulfillment_status === "preparing") {
+						refundCogsTotal += Number(item.cogs_total) * -1;
+					}
+				}
 
 				// 4. Create the negative counter-weight ticket (LEAVE IT OPEN)
 				const [refundOrder] = await q`
@@ -175,13 +171,18 @@ export const actions: Actions = {
                     )
                     VALUES (
                         ${orderId}, ${profileId}, 'refund',
-                        ${refundPriceTotal}, 0, ${original.shift}, ${original.customer_name}
+                        ${refundPriceTotal}, ${refundCogsTotal}, ${original.shift}, ${original.customer_name}
                     )
                     RETURNING id
                 `;
 
 				// 5. Clone the items AND their modifiers into the new ticket
 				for (const item of items) {
+					// Apply the same logic per-item
+					const isRecoupable = item.fulfillment_status === "preparing";
+					const targetCogsBase = isRecoupable ? Number(item.cogs_base) : 0;
+					const targetCogsTotal = isRecoupable ? Number(item.cogs_total) * -1 : 0;
+
 					const [refundOrderItem] = await q`
                         INSERT INTO public.order_items (
                             order_id, item_variation_id, quantity, price_base, cogs_base,
@@ -189,8 +190,8 @@ export const actions: Actions = {
                             original_order_item_id
                         )
                         VALUES (
-                            ${refundOrder.id}, ${item.item_variation_id}, ${-item.quantity}, ${item.price_base}, 0,
-                            ${-Number(item.price_total)}, 0, 'refunded'::public.ledger_state, 'cancelled'::public.fulfillment_state,
+                            ${refundOrder.id}, ${item.item_variation_id}, ${-item.quantity}, ${item.price_base}, ${targetCogsBase},
+                            ${-Number(item.price_total)}, ${targetCogsTotal}, 'refunded'::public.ledger_state, 'cancelled'::public.fulfillment_state,
                             ${item.id}
                         )
                         RETURNING id
@@ -198,18 +199,19 @@ export const actions: Actions = {
 
 					// Clone the modifiers to keep reporting perfectly balanced!
 					const modifiers = await q`
-                        SELECT modifier_id, quantity_per_item, price_base, resolved_ingredient_id
+                        SELECT modifier_id, quantity_per_item, price_base, cogs_base, resolved_ingredient_id
                         FROM public.order_item_modifiers
                         WHERE order_item_id = ${item.id}
                     `;
 
 					for (const mod of modifiers) {
+						const modCogsBase = isRecoupable ? Number(mod.cogs_base) : 0;
 						await q`
                             INSERT INTO public.order_item_modifiers (
                                 order_item_id, modifier_id, quantity_per_item, price_base, cogs_base, resolved_ingredient_id
                             )
                             VALUES (
-                                ${refundOrderItem.id}, ${mod.modifier_id}, ${-mod.quantity_per_item}, ${mod.price_base}, 0, ${mod.resolved_ingredient_id}
+                                ${refundOrderItem.id}, ${mod.modifier_id}, ${-mod.quantity_per_item}, ${mod.price_base}, ${modCogsBase}, ${mod.resolved_ingredient_id}
                             )
                         `;
 					}

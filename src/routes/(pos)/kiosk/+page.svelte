@@ -108,7 +108,7 @@
 
 	let customerName = $state("");
 	let shift = $state("day");
-	let paymentMethod = $state("cash");
+	let paymentMethod = $state("unpaid");
 	let editOrderId = $derived<number | null>(data.editOrderData?.id || null);
 	let loadedEditId = $state<number | null>(null);
 
@@ -135,8 +135,8 @@
 			} else {
 				cart = [];
 				customerName = "";
-				shift = "day";
-				paymentMethod = "cash";
+				// shift = "day";
+				paymentMethod = "unpaid";
 			}
 		}
 	});
@@ -180,7 +180,7 @@
 		if (cart.length > 0 && total === 0 && paymentMethod !== "comped") {
 			paymentMethod = "comped";
 		} else if (total > 0 && paymentMethod === "comped") {
-			paymentMethod = "cash";
+			paymentMethod = "unpaid";
 		}
 	});
 
@@ -348,7 +348,7 @@
 			update,
 		}: {
 			result: ActionResult;
-			update: () => Promise<void>;
+			update: (options?: { reset?: boolean }) => Promise<void>; // Add typing for options
 		}) => {
 			isSubmitting = false;
 			if (result.type === "success") {
@@ -357,7 +357,11 @@
 				cart = [];
 				customerName = "";
 				amountTendered = "";
-				await update();
+				// 🛡️ Explicitly enforce the default payment method for the next order
+				paymentMethod = "unpaid";
+
+				// 🚀 Tell SvelteKit NOT to reset the native <form>, preserving our `shift` state
+				await update({ reset: false });
 			} else if (result.type === "failure") {
 				alert(result.data?.error || "Transaction failed. Please try again.");
 			}

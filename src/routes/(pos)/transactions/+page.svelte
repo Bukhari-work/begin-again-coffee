@@ -196,8 +196,7 @@
 
 			let matchesStatus = true;
 			if (statusFilter === "paid")
-				matchesStatus =
-					o.payment_method !== null && o._uiStatus !== "cancelled" && o.kind === "sale";
+				matchesStatus = o.payment_method !== null && o.kind === "sale";
 			if (statusFilter === "unpaid")
 				matchesStatus = o.payment_method === null && o._uiStatus !== "cancelled";
 			if (statusFilter === "cancelled") matchesStatus = o._uiStatus === "cancelled";
@@ -501,10 +500,21 @@
 						</TableRow>
 					{:else}
 						{#each filteredOrders as order (order.id)}
+							<!-- 🚀 1. Define order-level liability -->
+							{@const hasLiability = order.items.some(
+								(i) =>
+									i.ledger_status === "active" &&
+									i.fulfillment_status === "cancelled" &&
+									!i.is_already_refunded
+							)}
+
+							<!-- 🚀 2. Remove opacity fade and add red background if it's a liability -->
 							<TableRow
-								class="{order._uiStatus === 'cancelled'
+								class="{order._uiStatus === 'cancelled' && !hasLiability
 									? 'opacity-50'
-									: ''} {order.kind === 'refund' ? 'bg-destructive/5' : ''}"
+									: ''} {order.kind === 'refund' || hasLiability
+									? 'bg-destructive/5'
+									: ''}"
 							>
 								<TableCell class="font-mono font-black">
 									#{order.id}
@@ -539,11 +549,24 @@
 											{#if displayItems.length > 0}
 												<div class="flex flex-wrap gap-1">
 													{#each displayItems as i, index (i.id)}
+														<!-- 🚀 3. Highlight specific liability items in the summary -->
+														{@const isItemLiability =
+															i.ledger_status === "active" &&
+															i.fulfillment_status === "cancelled" &&
+															!i.is_already_refunded}
 														<span
-															class={i.is_already_refunded
-																? "text-muted-foreground line-through"
-																: ""}
+															class="{i.is_already_refunded
+																? 'text-muted-foreground line-through'
+																: ''}
+                                                   {isItemLiability
+																? 'text-destructive font-bold'
+																: ''}"
 														>
+															{#if isItemLiability}
+																<TriangleAlert
+																	class="mb-0.5 inline-block h-3 w-3"
+																/>
+															{/if}
 															{i.qty}x {i.name}{index <
 															displayItems.length - 1
 																? ", "
@@ -554,11 +577,23 @@
 											{:else}
 												<div class="flex flex-wrap gap-1">
 													{#each order.items as i, index (i.id)}
+														{@const isItemLiability =
+															i.ledger_status === "active" &&
+															i.fulfillment_status === "cancelled" &&
+															!i.is_already_refunded}
 														<span
-															class={i.is_already_refunded
-																? "text-muted-foreground line-through"
-																: ""}
+															class="{i.is_already_refunded
+																? 'text-muted-foreground line-through'
+																: ''}
+                                                   {isItemLiability
+																? 'text-destructive font-bold'
+																: ''}"
 														>
+															{#if isItemLiability}
+																<TriangleAlert
+																	class="mb-0.5 inline-block h-3 w-3"
+																/>
+															{/if}
 															{i.qty}x {i.name}{index <
 															order.items.length - 1
 																? ", "
@@ -578,6 +613,14 @@
 											class="border-destructive/30 bg-destructive/10 text-destructive text-[10px] font-bold uppercase"
 										>
 											<Undo2 class="mr-1 h-3 w-3" /> Refunded
+										</Badge>
+										<!-- 🚀 4. Override Status Badge for Liabilities -->
+									{:else if hasLiability}
+										<Badge
+											variant="destructive"
+											class="animate-pulse text-[10px] font-bold uppercase shadow-sm"
+										>
+											<TriangleAlert class="mr-1 h-3 w-3" /> Liability
 										</Badge>
 									{:else if order._uiStatus === "preparing"}
 										<Badge
@@ -637,7 +680,7 @@
 
 								<TableCell
 									class="text-right font-mono font-bold {order._uiStatus ===
-									'cancelled'
+										'cancelled' && !hasLiability
 										? 'line-through'
 										: ''} {order.kind === 'refund' ? 'text-destructive' : ''}"
 								>

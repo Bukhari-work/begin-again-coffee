@@ -2,10 +2,6 @@ import sql from "$lib/server/db";
 import { fail } from "@sveltejs/kit";
 import type { PageServerLoad, Actions } from "./$types";
 
-// ==========================================
-// DOMAIN TYPES
-// ==========================================
-
 type ModifierRow = {
 	id: number;
 	group_id: number;
@@ -149,15 +145,38 @@ export const load: PageServerLoad = async ({ url }) => {
 		};
 	}
 
-	// ==========================================
-	// EDIT ORDER
-	// ==========================================
+	const [order] = await sql`
+        WITH TargetOrder AS (
+            -- 1. Isolate the target ticket immediately
+            SELECT
+                id,
+                customer_name,
+                payment_method,
+                shift
+            FROM public.orders
+            WHERE id = ${editId}
+        ),
 
-	const editOrderRows = await sql`
-        WITH ItemModifiers AS (
+        TargetItems AS (
+            -- 2. Isolate only relevant items
+            SELECT
+                id,
+                order_id,
+                item_variation_id,
+                quantity,
+                price_base,
+                ledger_status,
+                fulfillment_status
+            FROM public.order_items
+            WHERE order_id = ${editId}
+              AND ledger_status IN ('active', 'voided')
+              AND fulfillment_status != 'cancelled'
+        ),
+
+        ItemModifiers AS (
+            -- 3. Aggregate modifiers only for isolated items
             SELECT
                 oim.order_item_id,
-
                 json_agg(
                     json_build_object(
                         'id', m.id,
@@ -167,12 +186,11 @@ export const load: PageServerLoad = async ({ url }) => {
                     )
                     ORDER BY m.name ASC
                 ) AS modifiers
-
             FROM public.order_item_modifiers oim
-
             JOIN public.modifiers m
                 ON m.id = oim.modifier_id
-
+            JOIN TargetItems ti
+                ON ti.id = oim.order_item_id
             GROUP BY oim.order_item_id
         )
 
@@ -181,68 +199,39 @@ export const load: PageServerLoad = async ({ url }) => {
             o.customer_name,
             o.payment_method,
             o.shift,
-
             COALESCE(
                 json_agg(
                     json_build_object(
                         'cart_item_id', oi.id::text,
                         'db_item_id', oi.id,
-
                         'id', iv.id,
                         'parent_item_id', i.id,
-
                         'name', i.name || ' (' || iv.name || ')',
-
                         'category', 'Loaded Item',
-
                         'base_price', oi.price_base,
-
-                        'price',
-                            CASE
-                                WHEN oi.quantity = 0 THEN 0
-                                ELSE oi.price_total / oi.quantity
-                            END,
-
+                        'price', oi.price_base,
                         'qty', oi.quantity,
-
-                        'is_freebie',
-                            (oi.ledger_status = 'voided'),
-
+                        'is_freebie', (oi.ledger_status = 'voided'),
                         'ledger_status', oi.ledger_status,
                         'fulfillment_status', oi.fulfillment_status,
-
-                        'modifiers',
-                            COALESCE(im.modifiers, '[]'::json)
+                        'modifiers', COALESCE(im.modifiers, '[]'::json)
                     )
-
                     ORDER BY oi.id ASC
-
                 ) FILTER (
                     WHERE oi.id IS NOT NULL
-                      AND oi.ledger_status IN ('active', 'voided')
-                      AND oi.fulfillment_status != 'cancelled'
                 ),
-
                 '[]'::json
-
             ) AS cart
 
-        FROM public.orders o
-
-        LEFT JOIN public.order_items oi
+        FROM TargetOrder o
+        LEFT JOIN TargetItems oi
             ON oi.order_id = o.id
-
         LEFT JOIN public.item_variations iv
             ON iv.id = oi.item_variation_id
-
         LEFT JOIN public.items i
             ON i.id = iv.item_id
-
         LEFT JOIN ItemModifiers im
             ON im.order_item_id = oi.id
-
-        WHERE o.id = ${editId}
-
         GROUP BY
             o.id,
             o.customer_name,
@@ -250,17 +239,21 @@ export const load: PageServerLoad = async ({ url }) => {
             o.shift;
     `;
 
-	const [order] = editOrderRows;
-
 	if (!order) {
 		return {
 			editOrderData: null,
 		};
 	}
 
-	// Kitchen lock:
-	// if ANY item already served,
-	// the ticket becomes immutable
+	// 1. Financial Lock:
+	// If the customer has paid, the ticket is immutable.
+	// Modifications must be handled via Refunds on the Transaction page.
+	if (order.payment_method !== null) {
+		return { editOrderData: null };
+	}
+
+	// 2. Kitchen Lock:
+	// Once ANY item is served, the ticket becomes immutable.
 	const hasServedItems = order.cart.some(
 		(item: { fulfillment_status?: string }) => item.fulfillment_status === "served"
 	);

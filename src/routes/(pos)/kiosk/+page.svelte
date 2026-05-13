@@ -50,7 +50,6 @@
 		category_id: number | null;
 	}
 
-	// 🛡️ UPDATED: Synced to backend types
 	interface Modifier {
 		id: number;
 		group_id: number;
@@ -108,11 +107,11 @@
 
 	let customerName = $state("");
 	let shift = $state("day");
-	let paymentMethod = $state("cash");
+	let paymentMethod = $state("unpaid");
 	let editOrderId = $derived<number | null>(data.editOrderData?.id || null);
 	let loadedEditId = $state<number | null>(null);
 
-	// 🚀 RESTORED: $O(1) Map for instant lookups
+	// $O(1) Map for instant lookups
 	let modifierLookup = $derived.by(() => {
 		const map = new SvelteMap<number, Modifier>();
 		for (const mod of data.modifiers) {
@@ -135,8 +134,7 @@
 			} else {
 				cart = [];
 				customerName = "";
-				shift = "day";
-				paymentMethod = "cash";
+				paymentMethod = "unpaid";
 			}
 		}
 	});
@@ -180,7 +178,7 @@
 		if (cart.length > 0 && total === 0 && paymentMethod !== "comped") {
 			paymentMethod = "comped";
 		} else if (total > 0 && paymentMethod === "comped") {
-			paymentMethod = "cash";
+			paymentMethod = "unpaid";
 		}
 	});
 
@@ -191,7 +189,7 @@
 			maximumFractionDigits: 0,
 		}).format(val);
 
-	// 🛡️ RESTORED: Deduplication to fix SQL JOIN overlaps
+	// Deduplication to fix SQL JOIN overlaps
 	function dedupeModifierGroups(groups: ModifierGroup[]) {
 		const seen = new SvelteSet<number>();
 		return groups.filter((group) => {
@@ -273,7 +271,6 @@
 			.filter(([, qty]) => qty > 0)
 			.map(([idStr, qty]) => {
 				const modId = Number(idStr);
-				// 🚀 USING MAP INSTEAD OF .find()
 				const modDef = modifierLookup.get(modId);
 				if (!modDef) return null;
 				return {
@@ -348,7 +345,7 @@
 			update,
 		}: {
 			result: ActionResult;
-			update: () => Promise<void>;
+			update: (options?: { reset?: boolean }) => Promise<void>; // Add typing for options
 		}) => {
 			isSubmitting = false;
 			if (result.type === "success") {
@@ -357,7 +354,10 @@
 				cart = [];
 				customerName = "";
 				amountTendered = "";
-				await update();
+				paymentMethod = "unpaid";
+
+				// Tell SvelteKit NOT to reset the native <form>, preserving our `shift` state
+				await update({ reset: false });
 			} else if (result.type === "failure") {
 				alert(result.data?.error || "Transaction failed. Please try again.");
 			}

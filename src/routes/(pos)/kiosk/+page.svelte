@@ -50,7 +50,6 @@
 		category_id: number | null;
 	}
 
-	// 🛡️ UPDATED: Synced to backend types
 	interface Modifier {
 		id: number;
 		group_id: number;
@@ -112,7 +111,7 @@
 	let editOrderId = $derived<number | null>(data.editOrderData?.id || null);
 	let loadedEditId = $state<number | null>(null);
 
-	// 🚀 RESTORED: $O(1) Map for instant lookups
+	// $O(1) Map for instant lookups
 	let modifierLookup = $derived.by(() => {
 		const map = new SvelteMap<number, Modifier>();
 		for (const mod of data.modifiers) {
@@ -191,7 +190,7 @@
 			maximumFractionDigits: 0,
 		}).format(val);
 
-	// 🛡️ RESTORED: Deduplication to fix SQL JOIN overlaps
+	// Deduplication to fix SQL JOIN overlaps
 	function dedupeModifierGroups(groups: ModifierGroup[]) {
 		const seen = new SvelteSet<number>();
 		return groups.filter((group) => {
@@ -273,7 +272,6 @@
 			.filter(([, qty]) => qty > 0)
 			.map(([idStr, qty]) => {
 				const modId = Number(idStr);
-				// 🚀 USING MAP INSTEAD OF .find()
 				const modDef = modifierLookup.get(modId);
 				if (!modDef) return null;
 				return {
@@ -357,10 +355,9 @@
 				cart = [];
 				customerName = "";
 				amountTendered = "";
-				// 🛡️ Explicitly enforce the default payment method for the next order
 				paymentMethod = "unpaid";
 
-				// 🚀 Tell SvelteKit NOT to reset the native <form>, preserving our `shift` state
+				// Tell SvelteKit NOT to reset the native <form>, preserving our `shift` state
 				await update({ reset: false });
 			} else if (result.type === "failure") {
 				alert(result.data?.error || "Transaction failed. Please try again.");

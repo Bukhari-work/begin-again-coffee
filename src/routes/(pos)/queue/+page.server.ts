@@ -4,31 +4,72 @@ import type { PageServerLoad, Actions } from "./$types";
 
 export const load: PageServerLoad = async () => {
 	const activeOrders = await sql`
-        WITH TicketStatus AS (
+        WITH TodaySales AS (
+            -- 1. Isolate today's sales ONCE
             SELECT
-                o.id,
-                o.customer_name,
-                o.payment_method,
-                o.created_at,
-                o.price_total,
+                id,
+                customer_name,
+                payment_method,
+                created_at,
+                price_total
+            FROM public.orders
+            WHERE kind = 'sale'
+              AND created_at >= CURRENT_DATE
+              AND created_at < CURRENT_DATE + INTERVAL '1 day'
+        ),
 
-                -- The Matrix: Derive the ticket status from the physical items
+        ItemModifiers AS (
+            -- 2. Pre-aggregate modifiers ONLY for today's relevant items
+            SELECT
+                oim.order_item_id,
+
+                json_agg(
+                    json_build_object(
+                        'name', m.name,
+                        'qty', oim.quantity_per_item
+                    )
+                    ORDER BY m.name ASC
+                ) AS mod_json
+
+            FROM public.order_item_modifiers oim
+
+            JOIN public.modifiers m
+                ON m.id = oim.modifier_id
+
+            JOIN public.order_items oi
+                ON oi.id = oim.order_item_id
+               AND oi.ledger_status IN ('active', 'voided')
+
+            JOIN TodaySales ts
+                ON ts.id = oi.order_id
+
+            GROUP BY oim.order_item_id
+        ),
+
+        QueueTickets AS (
+            -- 3. Build queue tickets
+            SELECT
+                ts.id,
+                ts.customer_name,
+                ts.payment_method,
+                ts.created_at,
+                ts.price_total,
+
                 CASE
                     WHEN COUNT(oi.id) = 0 THEN 'empty'
 
-                    -- If EVERY item was physically aborted, the ticket is dead.
-                    WHEN bool_and(oi.fulfillment_status = 'cancelled') THEN 'cancelled'
+                    WHEN bool_and(
+                        oi.fulfillment_status = 'cancelled'
+                    ) THEN 'cancelled'
 
-                    -- THE FIX: If AT LEAST ONE item is still being made, the ticket stays in the queue.
-                    WHEN bool_or(oi.fulfillment_status = 'preparing') THEN 'preparing'
+                    WHEN bool_or(
+                        oi.fulfillment_status = 'preparing'
+                    ) THEN 'preparing'
 
-                    -- If it's not empty, not 100% cancelled, and nothing is preparing...
-                    -- it means a mix of 'served' and 'cancelled' items. The kitchen is done!
                     ELSE 'served'
-                END as derived_status,
+                END AS derived_status,
 
-                -- THE UPGRADE: We check if this ticket has ANY items we expect money for
-                bool_or(oi.ledger_status = 'active') as has_active_ledger,
+                bool_or(oi.ledger_status = 'active') AS has_active_ledger,
 
                 COALESCE(
                     json_agg(
@@ -37,36 +78,54 @@ export const load: PageServerLoad = async () => {
                             'name', i.name || ' (' || iv.name || ')',
                             'qty', oi.quantity,
                             'fulfillment_status', oi.fulfillment_status,
-                            'ledger_status', oi.ledger_status, -- THE UPGRADE: Pass this to the UI
-                            'modifiers', (
-                                SELECT COALESCE(json_agg(
-                                    json_build_object('name', m.name, 'qty', oim.quantity_per_item)
-                                ), '[]'::json)
-                                FROM order_item_modifiers oim
-                                JOIN modifiers m ON m.id = oim.modifier_id
-                                WHERE oim.order_item_id = oi.id
-                            )
+                            'ledger_status', oi.ledger_status,
+                            'modifiers', COALESCE(im.mod_json, '[]'::json)
                         )
-                    ) FILTER (WHERE oi.id IS NOT NULL AND oi.ledger_status IN ('active', 'voided')), '[]'::json
-                ) as items
-            FROM orders o
-            LEFT JOIN order_items oi ON o.id = oi.order_id
-            LEFT JOIN item_variations iv ON oi.item_variation_id = iv.id
-            LEFT JOIN items i ON iv.item_id = i.id
-            WHERE o.kind = 'sale'
-              AND o.created_at::DATE = CURRENT_DATE
-            GROUP BY o.id
+                        ORDER BY oi.id ASC
+                    ) FILTER (
+                        WHERE oi.id IS NOT NULL
+                    ),
+                    '[]'::json
+                ) AS items
+
+            FROM TodaySales ts
+
+            LEFT JOIN public.order_items oi
+                ON oi.order_id = ts.id
+               AND oi.ledger_status IN ('active', 'voided')
+
+            LEFT JOIN public.item_variations iv
+                ON iv.id = oi.item_variation_id
+
+            LEFT JOIN public.items i
+                ON i.id = iv.item_id
+
+            LEFT JOIN ItemModifiers im
+                ON im.order_item_id = oi.id
+
+            GROUP BY
+                ts.id,
+                ts.customer_name,
+                ts.payment_method,
+                ts.created_at,
+                ts.price_total
         )
-        SELECT * FROM TicketStatus
-        -- THE UPGRADE: Only show tickets if we still need to make them (preparing),
-        -- OR if we made them but haven't collected the money yet (served + unpaid).
-        -- If it is 'cancelled', it drops off the queue entirely!
+
+        -- 4. Final queue filter
+        SELECT *
+        FROM QueueTickets
         WHERE derived_status = 'preparing'
-            OR (derived_status = 'served' AND payment_method IS NULL AND has_active_ledger = true)
+           OR (
+                derived_status = 'served'
+                AND payment_method IS NULL
+                AND has_active_ledger = true
+           )
         ORDER BY created_at ASC;
     `;
 
-	return { activeOrders };
+	return {
+		activeOrders,
+	};
 };
 
 export const actions: Actions = {
@@ -105,8 +164,8 @@ export const actions: Actions = {
 			await sql.begin(async (tx) => {
 				const q = tx as unknown as typeof sql;
 
-				// 1. Matrix Check: Is the parent ticket paid?
-				const [order] = await q`SELECT payment_method FROM orders WHERE id = ${orderId}`;
+				const [order] =
+					await q`SELECT payment_method FROM orders WHERE id = ${orderId} FOR UPDATE`;
 				if (!order) throw new Error("Order not found");
 
 				const isPaid = order.payment_method !== null;
@@ -127,17 +186,16 @@ export const actions: Actions = {
                               fulfillment_status = 'cancelled'::public.fulfillment_state
                           WHERE id = ${itemId}
                       `;
-				}
 
-				// 2. Denormalization Sync
-				// This recalculates the parent order. If it's unpaid, the ticket gets cheaper!
-				await q`
+					// Denormalization Sync (ONLY safe to do if the ticket is unpaid)
+					await q`
                 UPDATE orders o
                 SET
                     price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
                     cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
                 WHERE id = ${orderId}
                 `;
+				}
 			});
 
 			return { success: true };
@@ -218,16 +276,16 @@ export const actions: Actions = {
                             END
                         WHERE order_id = ${orderId}
                     `;
-				}
 
-				// 2. Denormalization Sync (The Split-Matrix Method)
-				await q`
-                    UPDATE orders o
-                    SET
-                        price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
-                        cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
-                    WHERE id = ${orderId}
+					// 2. Denormalization Sync (The Split-Matrix Method)
+					await q`
+                        UPDATE orders o
+                        SET
+                            price_total = (SELECT COALESCE(SUM(price_total), 0) FROM order_items WHERE order_id = o.id AND ledger_status = 'active'),
+                            cogs_total = (SELECT COALESCE(SUM(cogs_total), 0) FROM order_items WHERE order_id = o.id AND fulfillment_status IN ('preparing', 'served'))
+                        WHERE id = ${orderId}
                 `;
+				}
 			});
 
 			return { success: true };
@@ -247,18 +305,21 @@ export const actions: Actions = {
 		if (!orderId || !paymentMethod) return fail(400, { error: "Missing required fields" });
 
 		try {
-			const [updatedOrder] = await sql`
-                UPDATE orders
-                SET payment_method = ${paymentMethod}
-                WHERE id = ${orderId}
-                RETURNING price_total
-            `;
-
-			if (paymentMethod === "comped" && Number(updatedOrder.price_total) > 0) {
-				// Revert the transaction by throwing an error
-				await sql`UPDATE orders SET payment_method = NULL WHERE id = ${orderId}`;
-				return fail(400, { error: "Cannot comp an order with a positive balance." });
-			}
+			// Use a transaction so we never end up with orphaned comped states
+			await sql.begin(async (tx) => {
+				const q = tx as unknown as typeof sql;
+				if (paymentMethod === "comped") {
+					const [order] = await q`SELECT price_total FROM orders WHERE id = ${orderId}`;
+					if (Number(order.price_total) > 0) {
+						throw new Error("Cannot comp an order with a positive balance.");
+					}
+				}
+				await q`
+                    UPDATE orders
+                    SET payment_method = ${paymentMethod}
+                    WHERE id = ${orderId}
+                `;
+			});
 
 			return { success: true };
 		} catch (error) {

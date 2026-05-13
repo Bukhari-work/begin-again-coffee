@@ -134,7 +134,6 @@
 			} else {
 				cart = [];
 				customerName = "";
-				// shift = "day";
 				paymentMethod = "unpaid";
 			}
 		}

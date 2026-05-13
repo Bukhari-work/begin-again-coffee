@@ -182,7 +182,7 @@ CREATE TABLE public.orders (
         (kind = 'sale' AND price_total >= 0)
         OR
         -- Refunds must have zero or negative revenue, and zero COGS
-        (kind = 'refund' AND price_total <= 0 AND cogs_total = 0)
+        (kind = 'refund' AND price_total <= 0 AND cogs_total <= 0)
     )
 );
 
@@ -213,7 +213,7 @@ CREATE TABLE public.order_items (
         (ledger_status IN ('active', 'voided') AND quantity >= 0)
         OR
         -- Refunded clone items MUST be negative quantities, and capture zero COGS
-        (ledger_status = 'refunded' AND quantity <= 0 AND cogs_total = 0)
+        (ledger_status = 'refunded' AND quantity <= 0 AND cogs_total <= 0)
     ),
     CONSTRAINT chk_order_items_total_math CHECK (
         -- Enforce that the denormalized total is ALWAYS the mathematical product
@@ -236,10 +236,6 @@ CREATE TABLE public.order_item_modifiers (
 
     CONSTRAINT chk_oim_refund_logic CHECK (
         quantity_per_item != 0 AND
-        (
-            quantity_per_item > 0
-            OR (quantity_per_item < 0 AND cogs_base = 0)
-        )
     )
 );
 

@@ -688,7 +688,7 @@
 								</TableCell>
 
 								<TableCell class="text-center">
-									{#if order.kind === "sale" && order.payment_method !== null && order._uiStatus !== "cancelled"}
+									{#if order.kind === "sale" && order.payment_method !== null}
 										{@const hasRefundableItems = order.items.some(
 											(i) =>
 												i.ledger_status === "active" &&
